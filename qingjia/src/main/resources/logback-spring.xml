@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 日志存放目录，可通过 System.setProperty("log.dir", ...) 动态设置 -->
+    <property name="LOG_DIR" value="${log.dir:-./logs}" />
+    <property name="APP_NAME" value="请假管理系统" />
+    <property name="CHARSET" value="UTF-8" />
+    <!-- 控制台日志格式 -->
+    <property name="CONSOLE_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36}:%L - %msg%n" />
+    <!-- 文件日志格式（不包含行号，略微提升性能） -->
+    <property name="FILE_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" />
+
+    <!-- 1. 控制台输出 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_PATTERN}</pattern>
+            <charset>${CHARSET}</charset>
+        </encoder>
+    </appender>
+
+    <!-- 2. 普通日志文件（INFO 及以上，按天滚动） -->
+    <appender name="INFO_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/system.info.log</file>
+        <!-- 只接受 INFO 及以上级别，WARN/ERROR 也会进这里，但会被后面的 ERROR_FILE 也记录 -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/system.info.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <!-- 保留30天 -->
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${FILE_PATTERN}</pattern>
+            <charset>${CHARSET}</charset>
+        </encoder>
+        <!-- 缓冲IO（类似之前的 BufferedIO=true） -->
+        <immediateFlush>false</immediateFlush>
+    </appender>
+
+    <!-- 3. 错误日志文件（ERROR 及以上，按天滚动） -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/system.error.log</file>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/system.error.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${FILE_PATTERN}</pattern>
+            <charset>${CHARSET}</charset>
+        </encoder>
+        <immediateFlush>true</immediateFlush> <!-- 错误日志实时输出 -->
+    </appender>
+
+    <!-- 设置根日志级别 -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="INFO_FILE" />
+        <appender-ref ref="ERROR_FILE" />
+    </root>
+
+    <!-- MyBatis SQL 日志级别 -->
+    <logger name="com.baomidou.mybatisplus" level="DEBUG" />
+    <logger name="org.apache.ibatis" level="DEBUG" />
+    <logger name="edu.hbmd.taotao.qingjia.mapper" level="DEBUG" />
+    <logger name=" edu.hbmd.taotao.qingjia.service" level="DEBUG" />
+    <!-- 如果希望看到 SQL 参数绑定，可以打开下面的 logger -->
+    <logger name="org.mybatis.spring.SqlSessionUtils" level="DEBUG" />
+</configuration>

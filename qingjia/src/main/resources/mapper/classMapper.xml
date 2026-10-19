@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="edu.hbmd.taotao.qingjia.mapper.ClassMaper">
+    <sql id="class_query_field">
+        class.id,
+        class.num,
+        class.grade,
+        class.belongToCollegeId,
+        class.banZhuRenId,
+        teacher.name as bzrName,
+        college.name as collegeName
+    </sql>
+    <sql id="class_query_condition">
+        <if test="clazz.num!=null">
+            AND class.num like CONCAT('%', #{clazz.num}, '%')
+        </if>
+        <if test="clazz.grade!=null">
+            AND class.grade = #{clazz.grade}
+        </if>
+        <if test="clazz.belongToCollegeId!=null">
+            AND class.belongToCollegeId = #{clazz.belongToCollegeId}
+        </if>
+        <if test="clazz.banZhuRenId!=null">
+            AND class.banZhuRenId = #{clazz.banZhuRenId}
+        </if>
+    </sql>
+    <sql id="college_left_join">
+        LEFT  JOIN college ON class.belongToCollegeId = college.id
+        LEFT  JOIN teacher ON class.banZhuRenId = teacher.id
+    </sql>
+    <select id="pageClasses"
+            resultType="ClassVo">
+        SELECT
+        <include refid="class_query_field"/>
+        FROM
+        class
+        <include refid="college_left_join"/>
+        <trim prefix="where" prefixOverrides="AND|OR">
+            <include refid="class_query_condition"/>
+        </trim>
+    </select>
+    <select id="listClasses"
+            resultType="ClassVo">
+        SELECT
+        <include refid="class_query_field"/>
+        FROM
+        class
+        <include refid="college_left_join"/>
+        <trim prefix="where" prefixOverrides="AND|OR">
+            <include refid="class_query_condition"/>
+        </trim>
+    </select>
+</mapper>

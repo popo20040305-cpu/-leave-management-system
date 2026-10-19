@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<div class="pagin" th:fragment="page_fragment" th:object="${page}">
+    <div class="message">
+        共
+        <i class="blue">[[*{total}]]</i>条记录，当前显示第&nbsp;
+        <i class="blue">[[*{current}]]&nbsp;</i>页
+        每页
+        <input type="text" class="blue" id="pageSize" style="height:25px;width: 32px; border: solid #0b3a58"
+               th:value="*{size}">
+        </input>条记录
+        <button
+                onclick="changePageSize()" id="bPageSie"
+                style="border: #ccc solid;height: 29px;width: 50px"
+                th:attr="url=@{/setPageSize}">设置</button>
+    </div>
+
+    <ul class="paginList">
+        <li th:enable="${page.hasPrevious()}" class="paginItem">
+            <a th:href="${pageUrl}+${page.current-1}">
+                <span class="pagepre"></span>
+            </a>
+        </li>
+        <li th:if="${page.hasNext()}" class="paginItem">
+            <a th:href="${pageUrl}+${page.current+1}">
+                <span class="pagenxt"></span>
+            </a>
+        </li>
+    </ul>
+</div>
+</body>
+</html>
+

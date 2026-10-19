@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:shiro="http://www.thymeleaf.org/thymeleaf-extras-shiro">
+<head th:replace="/common/template :: header(~{::title},~{::link},~{::style})">
+    <title>班级管理</title>
+</head>
+<style>
+    /* 遮罩层 */
+    .mask {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+    /* 模态框基础 */
+    .tip {
+        position: fixed;
+        background: #fff;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        z-index: 1000;
+        width: 480px;
+        display: none;
+        flex-direction: column;
+    }
+    /* 添加/修改模态框 */
+    #classModal {
+        width: 520px;
+        min-height: 380px;
+    }
+    #classModal .tipinfo {
+        flex: 1;
+        padding: 20px;
+    }
+    /* 指定班主任模态框 */
+    #teacherModal {
+        width: 500px;
+        min-height: 400px;
+    }
+    #teacherModal .tipinfo {
+        flex: 1;
+        padding: 20px;
+    }
+    .tip .tiptop {
+        padding: 10px;
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        cursor: move;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .tip .tiptop span {
+        color: #2e8b57;
+        font-weight: bold;
+        font-size: 14px;
+    }
+    .tip .tiptop a {
+        color: red;
+        font-size: 20px;
+        text-decoration: none;
+        cursor: pointer;
+        line-height: 1;
+    }
+    /* 表单样式 */
+    .class-form-table {
+        width: 100%;
+    }
+    .class-form-table tr {
+        height: 50px;
+    }
+    .class-form-table td.label {
+        width: 100px;
+        text-align: right;
+        padding-right: 10px;
+        vertical-align: top;
+        padding-top: 8px;
+    }
+    .class-form-table td.input {
+        text-align: left;
+    }
+    .class-form-table input,
+    .class-form-table select {
+        width: 100%;
+        padding: 6px 4px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        box-sizing: border-box;
+    }
+    .tipbtn {
+        text-align: center;
+        padding: 10px;
+        border-top: 1px solid #eee;
+        background: #fafafa;
+    }
+    .tipbtn button {
+        margin: 0 10px;
+        padding: 6px 20px;
+        cursor: pointer;
+    }
+    .tipbtn .sure {
+        background: #2e8b57;
+        color: white;
+        border: none;
+        border-radius: 3px;
+    }
+    .tipbtn .cancel {
+        background: #ccc;
+        border: none;
+        border-radius: 3px;
+    }
+    .toolbar1 li {
+        cursor: pointer;
+    }
+    /* 教师列表样式 */
+    .teacher-search {
+        margin-bottom: 15px;
+    }
+    .teacher-search input {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+    }
+    .teacher-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    .teacher-list li {
+        padding: 10px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+    }
+    .teacher-list li:hover {
+        background-color: #f5f5f5;
+    }
+    .teacher-list li.selected {
+        background-color: #e8f5e9;
+    }
+    .teacher-list li input {
+        margin-right: 10px;
+        cursor: pointer;
+    }
+    .teacher-info {
+        flex: 1;
+    }
+    .teacher-name {
+        font-weight: bold;
+        font-size: 14px;
+    }
+    .teacher-college {
+        font-size: 12px;
+        color: #999;
+        margin-top: 4px;
+    }
+    .empty-tip {
+        text-align: center;
+        color: #999;
+        padding: 30px;
+    }
+    /* 修复表格样式 */
+    .tablelist {
+        width: 100%;
+        margin-top: 15px;
+    }
+</style>
+<body>
+<div class="place">
+    <span>位置：</span>
+    <ul class="placeul">
+        <li><a href="#">基础信息</a></li>
+        <li><a href="#">班级管理</a></li>
+    </ul>
+</div>
+
+<div class="rightinfo">
+    <!-- 工具栏：查询表单 + 添加按钮 -->
+    <div class="tools"  shiro:hasPermission="baseinfo:class:query">
+        <form th:action="@{/class/index}" method="get" name="queryForm">
+            <ul class="toolbar">
+                <li>
+                    <input type="hidden" name="curPage" value="1"/>
+                </li>
+                <li>
+                    <label>班级编号</label>
+                    <cite>
+                        <input type="text" name="num" th:value="${classQuery.num}"
+                               style="height:25px; border:solid #0b3a58"/>
+                    </cite>
+                </li>
+                <li>
+                    <label>所属学院</label>
+                    <cite>
+                        <select name="belongToCollegeId" style="height:31px; border:solid #0b3a58">
+                            <option value="">全部</option>
+                            <option th:each="college : ${colleges}"
+                                    th:value="${college.id}"
+                                    th:text="${college.name}"
+                                    th:selected="${classQuery.belongToCollegeId != null and classQuery.belongToCollegeId == college.id}">
+                            </option>
+                        </select>
+                    </cite>
+                </li>
+                <li>
+                    <label>年级</label>
+                    <cite>
+                        <select name="grade" style="height:31px; border:solid #0b3a58">
+                            <option value="">全部</option>
+                            <option th:each="grade : ${grades}"
+                                    th:value="${grade.grade}"
+                                    th:text="${grade.grade}"
+                                    th:selected="${classQuery.grade != null and classQuery.grade == grade.grade}">
+                            </option>
+                        </select>
+                    </cite>
+                </li>
+                <li>
+                    <span><img th:src="@{/images/ico06.png}" onclick="document.queryForm.submit();"/></span>
+                </li>
+            </ul>
+        </form>
+        <ul class="toolbar1" shiro:hasPermission="baseinfo:class:add">
+            <li id="btnAdd" onclick="showAddModal();">
+                <span><img th:src="@{/images/t01.png}"/></span>
+                <a>添加</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- 班级列表表格 -->
+    <table class="tablelist">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>班级编号</th>
+            <th>所属学院</th>
+            <th>年级</th>
+            <th>班主任</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="classVo : ${page.records}">
+            <td th:text="${classVo.id}"></td>
+            <td th:text="${classVo.num}"></td>
+            <td th:text="${classVo.collegeName}"></td>
+            <td th:text="${classVo.grade}"></td>
+            <td>
+                <span th:if="${classVo.bzrName != null}" th:text="${classVo.bzrName}"></span>
+                <span th:if="${classVo.bzrName == null}" style="color:#999;">未指定</span>
+            </td>
+            <td>
+                <a class="tablelink" href="javascript:void(0);" th:onclick="|setHeadTeacher(${classVo.id})|" shiro:hasPermission="baseinfo:class:banzhuren">指定班主任</a>
+                <a class="tablelink" href="javascript:void(0);" th:onclick="|editClass(${classVo.id})|" shiro:hasPermission="baseinfo:class:update">修改</a>
+                <a class="tablelink" href="javascript:void(0);" th:onclick="|deleteClass(${classVo.id})|" shiro:hasPermission="baseinfo:class:delete">删除</a>
+            </td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(page.records)}">
+            <td colspan="6" style="text-align:center;">暂无数据</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <!-- 分页公共片段 -->
+    <div th:replace="~{common/pageCommon::page_fragment}"></div>
+</div>
+
+<!-- 遮罩层 -->
+<div id="mask" class="mask"></div>
+
+<!-- ========== 添加/修改模态框 ========== -->
+<div id="classModal" class="tip" style="left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop">
+        <span id="modalTitle">班级信息</span>
+        <a class="closeModal">×</a>
+    </div>
+    <div class="tipinfo">
+        <form id="classForm">
+            <input type="hidden" id="classId" name="id"/>
+            <table class="class-form-table">
+                <tr>
+                    <td class="label"><label>班级编号：</label></td>
+                    <td class="input"><input type="text" id="classNum" name="num" required/></td>
+                </tr>
+                <tr>
+                    <td class="label"><label>所属学院：</label></td>
+                    <td class="input">
+                        <select id="collegeId" name="belongToCollegeId" required>
+                            <option value="">请选择学院</option>
+                            <option th:each="college : ${colleges}" th:value="${college.id}" th:text="${college.name}"></option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label"><label>年级：</label></td>
+                    <td class="input">
+                        <select id="grade" name="grade" required>
+                            <option value="">请选择年级</option>
+                            <option th:each="grade : ${grades}" th:value="${grade.grade}" th:text="${grade.grade}"></option>
+                        </select>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </div>
+    <div class="tipbtn">
+        <button id="saveClassBtn" class="sure">确定</button>
+        <button class="cancel closeModal">取消</button>
+    </div>
+</div>
+
+<!-- ========== 指定班主任模态框 ========== -->
+<div id="teacherModal" class="tip" style="left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop">
+        <span>指定班主任</span>
+        <a class="closeTeacherModal">×</a>
+    </div>
+    <div class="tipinfo">
+        <div class="teacher-search">
+            <input type="text" id="teacherSearchInput" placeholder="输入教师姓名进行搜索" autocomplete="off"/>
+        </div>
+        <ul class="teacher-list" id="teacherList">
+            <li class="empty-tip">请输入教师姓名搜索</li>
+        </ul>
+    </div>
+    <div class="tipbtn">
+        <button id="saveTeacherBtn" class="sure">保存</button>
+        <button class="cancel closeTeacherModal">取消</button>
+    </div>
+</div>
+
+<script th:src="@{/js/jquery.js}"></script>
+<script th:src="@{/js/common.js}"></script>
+<script type="text/javascript">
+    // 注意：BASE_URL 已经在 common.js 中定义
+    var currentClassId = null;
+    var selectedTeacherId = null;
+    var searchTimeout = null;
+
+    // 显示模态框和遮罩
+    function showModal(modalId) {
+        $(modalId).css('display', 'flex');
+        $('#mask').fadeIn(200);
+    }
+
+    function hideModal(modalId) {
+        $(modalId).fadeOut(100);
+        $('#mask').fadeOut(100);
+    }
+
+    // 添加班级
+    function showAddModal() {
+        $('#classId').val('');
+        $('#classForm')[0].reset();
+        $('#modalTitle').text('添加班级');
+        showModal('#classModal');
+    }
+
+    // 修改班级
+    function editClass(id) {
+        ajaxGet(BASE_URL + '/class/info/' + id, function(res) {
+            if (res.code === 200) {
+                var classData = res.data;
+                $('#classId').val(classData.id);
+                $('#classNum').val(classData.num);
+                $('#collegeId').val(classData.belongToCollegeId);
+                $('#grade').val(classData.grade);
+                $('#modalTitle').text('修改班级');
+                showModal('#classModal');
+            } else {
+                alert(res.msg);
+            }
+        });
+    }
+
+    // 保存班级
+    $('#saveClassBtn').click(function() {
+        var id = $('#classId').val();
+        var num = $('#classNum').val();
+        var belongToCollegeId = $('#collegeId').val();
+        var grade = $('#grade').val();
+
+        if (!num) {
+            alert('请输入班级编号');
+            return;
+        }
+        if (!belongToCollegeId) {
+            alert('请选择所属学院');
+            return;
+        }
+        if (!grade) {
+            alert('请选择年级');
+            return;
+        }
+
+        var formData = {
+            id: id || null,
+            num: num,
+            belongToCollegeId: parseInt(belongToCollegeId),
+            grade: parseInt(grade)
+        };
+
+        ajaxPost(BASE_URL + '/class/save', formData, function(res) {
+            if (res.code === 200) {
+                alert(res.msg);
+                hideModal('#classModal');
+                window.location.reload();
+            } else {
+                alert(res.msg);
+            }
+        });
+    });
+
+    // 删除班级
+    function deleteClass(id) {
+        if (confirm('确定删除该班级吗？删除后无法恢复。')) {
+            ajaxDelete(BASE_URL + '/class/delete/' + id, function(res) {
+                if (res.code === 200) {
+                    alert('删除成功');
+                    window.location.reload();
+                } else {
+                    alert(res.msg);
+                }
+            });
+        }
+    }
+
+    // 打开指定班主任模态框
+    function setHeadTeacher(classId) {
+        currentClassId = classId;
+        selectedTeacherId = null;
+        $('#teacherSearchInput').val('');
+        $('#teacherList').html('<li class="empty-tip">请输入教师姓名搜索</li>');
+        showModal('#teacherModal');
+    }
+
+    // 搜索教师
+    function searchTeachers() {
+        var keyword = $('#teacherSearchInput').val().trim();
+        if (keyword.length === 0) {
+            $('#teacherList').html('<li class="empty-tip">请输入教师姓名搜索</li>');
+            return;
+        }
+
+        ajaxGet(BASE_URL + '/class/searchTeachers?name=' + encodeURIComponent(keyword), function(teachers) {
+            renderTeacherList(teachers);
+        });
+    }
+
+    // 渲染教师列表
+    function renderTeacherList(teachers) {
+        if (!teachers || teachers.length === 0) {
+            $('#teacherList').html('<li class="empty-tip">未找到相关教师</li>');
+            return;
+        }
+        var html = '';
+        for (var i = 0; i < teachers.length; i++) {
+            var teacher = teachers[i];
+            var checked = (selectedTeacherId == teacher.id) ? 'checked="checked"' : '';
+            html += '<li teacher-id="' + teacher.id + '">';
+            html += '<input type="radio" name="teacherRadio" value="' + teacher.id + '" ' + checked + '>';
+            html += '<div class="teacher-info">';
+            html += '<div class="teacher-name">' + escapeHtml(teacher.name) + '</div>';
+            html += '<div class="teacher-college">' + (teacher.collegeName) + '</div>';
+            html += '</div>';
+            html += '</li>';
+        }
+        $('#teacherList').html(html);
+
+        // 绑定点击事件 - 使用原生JavaScript
+        var teacherItems = document.querySelectorAll('#teacherList li');
+        for (var i = 0; i < teacherItems.length; i++) {
+            teacherItems[i].onclick = function() {
+                var teacherId = this.getAttribute('teacher-id');
+                if (teacherId) {
+                    // 获取所有radio
+                    var radios = document.querySelectorAll('#teacherList input[name="teacherRadio"]');
+                    for (var j = 0; j < radios.length; j++) {
+                        radios[j].checked = false;
+                    }
+                    // 选中当前radio
+                    var currentRadio = this.querySelector('input[name="teacherRadio"]');
+                    if (currentRadio) {
+                        currentRadio.checked = true;
+                    }
+                    // 更新选中的教师ID
+                    selectedTeacherId = parseInt(teacherId);
+                    // 移除其他li的selected类
+                    var allLis = document.querySelectorAll('#teacherList li');
+                    for (var k = 0; k < allLis.length; k++) {
+                        allLis[k].className = '';
+                    }
+                    // 添加当前li的selected类
+                    this.className = 'selected';
+                }
+            };
+        }
+    }
+
+    // 转义HTML
+    function escapeHtml(text) {
+        if (!text) return '';
+        return text.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    // 保存班主任
+    $('#saveTeacherBtn').click(function() {
+        if (!selectedTeacherId) {
+            alert('请选择一位教师');
+            return;
+        }
+
+        $.ajax({
+            url: BASE_URL + '/class/setHeadTeacher',
+            type: 'POST',
+            data: {
+                classId: currentClassId,
+                teacherId: selectedTeacherId
+            },
+            success: function(res) {
+                if (res.code === 200) {
+                    alert(res.msg);
+                    hideModal('#teacherModal');
+                    window.location.reload();
+                } else {
+                    alert(res.msg);
+                }
+            },
+            error: function() {
+                alert('操作失败');
+            }
+        });
+    });
+
+    // 绑定搜索输入事件
+    var searchInput = document.getElementById('teacherSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(searchTeachers, 300);
+        });
+    }
+
+    // 关闭模态框
+    $('.closeModal').click(function() {
+        hideModal('#classModal');
+    });
+    $('.closeTeacherModal').click(function() {
+        hideModal('#teacherModal');
+    });
+    $('.cancel').click(function() {
+        hideModal('#classModal');
+        hideModal('#teacherModal');
+    });
+
+    // 点击遮罩关闭
+    $('#mask').click(function() {
+        $('.tip:visible').each(function() {
+            hideModal('#' + $(this).attr('id'));
+        });
+    });
+
+    // 表格行奇偶样式
+    $(document).ready(function() {
+        $('.tablelist tbody tr:odd').addClass('odd');
+    });
+</script>
+</body>
+</html>

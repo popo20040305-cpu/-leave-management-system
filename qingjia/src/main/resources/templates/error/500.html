@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{common/template :: header(~{::title},~{::link},~{::style})}">
+    <title>500 - 服务器内部错误</title>
+    <style>
+        /* 全局样式 */
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', 'PingFang SC', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .error-container {
+            max-width: 700px;
+            width: 100%;
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            animation: fadeInUp 0.4s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .error-header {
+            background: #f8fafc;
+            padding: 30px 32px 20px 32px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .error-icon {
+            font-size: 72px;
+            margin-bottom: 16px;
+        }
+
+        .error-code {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1e293b;
+            letter-spacing: 2px;
+            margin: 0;
+        }
+
+        .error-title {
+            font-size: 20px;
+            color: #475569;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+
+        .error-body {
+            padding: 32px;
+        }
+
+        .info-card {
+            background: #f1f5f9;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .info-row {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px dashed #cbd5e1;
+            font-size: 14px;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            width: 100px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .info-value {
+            flex: 1;
+            color: #1e293b;
+            word-break: break-word;
+        }
+
+        .message-box {
+            background: #fef2f2;
+            border-left: 4px solid #dc2626;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+
+        .message-box p {
+            margin: 0;
+            color: #7f1d1d;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-top: 24px;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e1;
+        }
+
+        footer {
+            background: #f1f5f9;
+            padding: 16px;
+            text-align: center;
+            font-size: 12px;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        @media (max-width: 640px) {
+            .error-container {
+                margin: 20px;
+            }
+            .error-header {
+                padding: 20px;
+            }
+            .error-code {
+                font-size: 36px;
+            }
+            .error-body {
+                padding: 20px;
+            }
+            .info-label {
+                width: 80px;
+            }
+            .action-buttons {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+            .btn {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="error-container">
+    <div class="error-header">
+        <div class="error-icon">⚠️</div>
+        <h1 class="error-code">500</h1>
+        <div class="error-title">服务器内部错误</div>
+    </div>
+
+    <div class="error-body">
+        <!-- 基本信息卡片 -->
+        <div class="info-card">
+            <div class="info-row">
+                <div class="info-label">请求路径</div>
+                <div class="info-value" th:text="${path} ?: '未知'">/some/api</div>
+            </div>
+            <div class="info-row" th:if="${timestamp}">
+                <div class="info-label">发生时间</div>
+                <div class="info-value" th:text="${#dates.format(timestamp, 'yyyy-MM-dd HH:mm:ss')}">2025-01-01 12:00:00</div>
+            </div>
+            <div class="info-row" th:if="${status}">
+                <div class="info-label">状态码</div>
+                <div class="info-value" th:text="${status}">500</div>
+            </div>
+            <div class="info-row" th:if="${error}">
+                <div class="info-label">错误类型</div>
+                <div class="info-value" th:text="${error}">Internal Server Error</div>
+            </div>
+        </div>
+
+        <!-- 详细提示信息 -->
+        <div class="message-box">
+            <p>服务器出了点小差，无法完成您的请求。我们的技术团队已收到通知，正在全力修复中。</p>
+            <p th:if="${message}" style="margin-top: 8px; font-size: 13px; color: #991b1b;">
+                详细信息：<span th:text="${message}">null pointer exception</span>
+            </p>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="action-buttons">
+            <a href="javascript:location.reload();" class="btn btn-primary">🔄 刷新重试</a>
+            <a href="javascript:history.back();" class="btn btn-secondary" target="rightFrame">← 返回上一页</a>
+            <a th:href="@{/}" class="btn btn-secondary" target="_top">🏠 回到首页</a>
+        </div>
+    </div>
+
+    <footer>
+        如果问题持续存在，请联系管理员并提供上方错误信息。
+    </footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,125 @@
+server:
+  tomcat:
+    uri-encoding: UTF-8
+    max-threads: 1000
+    min-spare-threads: 30
+    connection-timeout: 5000ms
+  port: 8089
+  servlet:
+    context-path: /qingjia
+
+spring:
+  # 统一 JSON 里的日期格式。
+  #
+  # 不加这两行的话 Jackson 默认把 java.util.Date 序列化成「毫秒数」、也只接受数字，
+  # 而请假模块的 begin/end/xiaoJiaTime/createTime 全是 Date：前端拿到的是
+  # 1782183681996 这种数字，提交时写 "2026-06-24 16:58:00" 还会直接反序列化失败
+  # （Cannot deserialize value of type java.util.Date from String）。
+  # 固定成 'yyyy-MM-dd HH:mm:ss' 之后，前后端都按同一个字符串格式收发，
+  # 前端 el-date-picker 的 value-format 可以直接对上，不用来回转时间戳。
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+  #配置thymeleaf禁止页面缓存
+  thymeleaf:
+    cache: false
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # allowPublicKeyRetrieval=true 是必须的：MySQL 8 的 root 默认用 caching_sha2_password，
+    # 在 useSSL=false 的情况下，一旦服务端的认证缓存是冷的（典型场景：MySQL 重启后第一次连接），
+    # 驱动就必须去取服务器的 RSA 公钥，没开这个参数会直接抛
+    # "Public Key Retrieval is not allowed"，Druid 建不出任何新连接，整个应用连不上库。
+    url: jdbc:mysql://localhost:3306/qingjia?useUnicode=true&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+    username: root
+    password: your_mysql_password            # ← 换成你本机的 MySQL 密码
+
+    initialSize: 5
+    minIdle: 5
+    maxActive: 20
+    maxWait: 60000
+    timeBetweenEvictionRunsMillis: 60000
+    minEvictableIdleTimeMillis: 300000
+    #Oracle需要打开注释
+    validationQuery: SELECT 1 FROM DUAL
+    testWhileIdle: true
+    testOnBorrow: false
+    testOnReturn: false
+    poolPreparedStatements: true
+    #   配置监控统计拦截的filters，去掉后监控界面sql无法统计，'wall'用于防火墙
+    #filters: stat,wall,log4j
+    filter:
+      stat:
+        log-slow-sql: true
+        slow-sql-millis: 1000
+        merge-sql: false
+      wall:
+        config:
+          multi-statement-allow: true
+    maxPoolPreparedStatementPerConnectionSize: 20
+    useGlobalDataSourceStat: true
+    connectionProperties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=500
+  ##配置文件访问虚目录
+  mvc:
+    static-path-pattern: /**  ##设置需要拦截的路径，即表示所有的访问都经过静态资源路径，也就是下面resource配置的静态资源都是用‘/’来访问
+  resources:
+    ##配置静态文件访问路径，上传图片保存到本地路径，允许访问，以file开头是因为他是绝对路径访问
+    static-locations: classpath:/META-INF/resources/,classpath:/resources/, classpath:/static/, classpath:/public/,file:./upload/images/
+mybatis-plus:
+  #config-location: classpath:mybatis-config.xml
+  mapper-locations:
+  #mapper.xml配置文件位置，可以不配置，默认就是这样配置的
+  - classpath:mapper/**/*.xml
+  #pojo别名扫描位置
+  type-aliases-package: edu.hbmd.taotao.qingjia.pojo,edu.hbmd.taotao.qingjia.vo
+  configuration:
+    #插入数据成功后，会返回插入数据的id
+    use-generated-keys: true
+    #mybatis在字段名由多个单词构成时，不会将pojo类中的大写字母修改为下划线
+    map-underscore-to-camel-case: false
+    ##配置对应的日志信息
+    ##log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+      # 可选：打印 SQL 到控制台（但受 logback 级别控制）
+  global-config:
+        banner: false
+
+project:
+  xss:
+    enabled: true
+    excludes: ""
+    urlPatterns: "/*" #url拦截规则，/**拦截所有url
+    whiteList: "none" #白名单类型：none 白名单为空，拦截所有html标签与属性  simpleText 文本  basic 基本防护  basicWithImages  基本与图片 relaxed 宽松
+
+  shiro:
+    #默认角色名
+    banzhuren_default-role-name: 班主任
+    student-default-role-name: 学生
+    teacher-default-role-name: 教师
+    #不拦截url
+    exclude-path-patterns:
+    - "/webjars/**"
+    - "/druid/**"
+    - "/images/**"
+    - "/js/**"
+    - "/css/**"
+    # 上传的教师头像 / 学生头像 / 销假照片。
+    # 这三条必须放行：它们是通过 project.upload.* 目录以静态资源暴露出去的，
+    # 浏览器加载 <img src="/teacherPhoto/xxx.jpg"> 时不会带 Authorization 头，
+    # 不放行就会被 QingjiaFilter 当成未登录请求、302 到 /login.html，
+    # 页面上的头像全是碎图（老 Thymeleaf 页面也有这个问题）。
+    - "/teacherPhoto/**"
+    - "/studentPhoto/**"
+    - "/xiaojiaPhoto/**"
+    - "/logout"
+    - "/captcha"
+    - "/api/login"
+    - "/api/logout"
+    login-url: "/login.html"
+    login-success-url: "/index.html"
+    unauthorized-url: "/noAuth"
+    token-expire-time: 24
+  upload:
+    upload-file-teacher-path: ./upload/images/teacherPhoto
+    upload-file-student-path: ./upload/images/studentPhoto
+    upload-file-xiao-jia-path: ./upload/images/xiaojiaPhoto

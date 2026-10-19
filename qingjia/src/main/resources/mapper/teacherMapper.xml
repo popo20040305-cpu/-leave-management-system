@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="edu.hbmd.taotao.qingjia.mapper.TeacherMapper">
+    <sql id="teacher_query_field">
+        teacher.id,
+        teacher.name,
+        teacher.num,
+        teacher.collegeId,
+        teacher.mobile,
+        teacher.avatarUrl,
+        college.name as collegeName
+    </sql>
+    <sql id="teacher_query_base_field">
+        teacher.id,
+        teacher.name,
+        teacher.collegeId,
+        college.name as collegeName
+    </sql>
+    <sql id="teacher_query_condition">
+        <if test="teacher.name!=null">
+            AND teacher.name like CONCAT('%', #{teacher.name}, '%')
+        </if>
+        <if test="teacher.num!=null">
+            AND teacher.num like CONCAT('%', #{teacher.num}, '%')
+        </if>
+        <if test="teacher.collegeId!=null">
+            AND teacher.collegeId = #{teacher.collegeId}
+        </if>
+    </sql>
+    <sql id="teacher_left_join">
+        LEFT  JOIN college ON teacher.collegeId = college.id
+    </sql>
+    <select id="pageTeachers"
+            resultType="TeacherVo">
+        SELECT
+        <include refid="teacher_query_field"/>
+        FROM
+        teacher
+        <include refid="teacher_left_join"/>
+        <trim prefix="where" prefixOverrides="AND|OR">
+            <include refid="teacher_query_condition"/>
+        </trim>
+    </select>
+    <select id="listTeachers"
+            resultType="TeacherVo">
+        SELECT
+        <include refid="teacher_query_field"/>
+        FROM
+        teacher
+        <include refid="teacher_left_join"/>
+        <trim prefix="where" prefixOverrides="AND|OR">
+            <include refid="teacher_query_condition"/>
+        </trim>
+    </select>
+    <select id="listBaseInfoTeachers"
+            resultType="TeacherVo">
+        SELECT
+        <include refid="teacher_query_base_field"/>
+        FROM
+        teacher
+        <include refid="teacher_left_join"/>
+        <trim prefix="where" prefixOverrides="AND|OR">
+            <include refid="teacher_query_condition"/>
+        </trim>
+    </select>
+</mapper>

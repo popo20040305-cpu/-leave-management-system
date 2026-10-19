@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:shiro="http://www.thymeleaf.org/thymeleaf-extras-shiro">
+    <head th:replace="/common/template :: header(~{::title},~{::link},~{::style})">
+        <title>菜单管理</title>
+        <style>
+            /* 样式同上，省略以节省空间，但实际使用时需完整复制之前的样式 */
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                display: flex;
+                height: 100vh;
+                background: #f0f9fd;
+                font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            }
+
+            .left-sidebar {
+                width: 360px;
+                background: #f0f9fd;
+                border-right: 1px solid #ddd;
+                overflow-y: auto;
+                padding: 16px 12px;
+            }
+
+            .add-dir-btn {
+                background: #18a689;
+                color: white;
+                border: none;
+                border-radius: 24px;
+                padding: 8px 16px;
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                margin-bottom: 20px;
+                display: inline-block;
+                width: 100%;
+                text-align: center;
+                transition: 0.2s;
+            }
+
+            .add-dir-btn:hover {
+                background: #1ab394;
+            }
+
+            .leftmenu {
+                list-style: none;
+                width: 100%;
+            }
+
+            .leftmenu dd {
+                margin-bottom: 6px;
+            }
+
+            .title {
+                padding: 8px 10px;
+                background: #e6f0f5;
+                border-radius: 8px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                user-select: none;
+                font-weight: 600;
+                font-size: 14px;
+                transition: 0.2s;
+                width: 100%;
+            }
+
+            .title:hover {
+                background: #d4e4ed;
+            }
+
+            .title-left {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex: 1;
+                overflow: hidden;
+            }
+
+            .toggle-icon {
+                font-size: 12px;
+                width: 20px;
+                display: inline-block;
+                flex-shrink: 0;
+                color: #2c3e50;
+            }
+
+            .dir-icon {
+                font-size: 16px;
+                margin-right: 4px;
+                flex-shrink: 0;
+            }
+
+            .dir-name {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .dir-add-btn {
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                font-size: 16px;
+                padding: 2px 10px;
+                border-radius: 20px;
+                color: #18a689;
+                font-weight: bold;
+                flex-shrink: 0;
+                transition: 0.1s;
+            }
+
+            .dir-add-btn:hover {
+                background: #c0d0dc;
+            }
+
+            .menuson {
+                list-style: none;
+                margin-left: 24px;
+                margin-top: 4px;
+                margin-bottom: 6px;
+                display: block;
+                width: calc(100% - 24px);
+            }
+
+            .menu-item-wrapper {
+                margin: 2px 0;
+                width: 100%;
+            }
+
+            .menu-item-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 6px 8px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 13px;
+                transition: 0.1s;
+                width: 100%;
+            }
+
+            .menu-item-row:hover {
+                background: #e0ecf2;
+            }
+
+            .menu-item-row.active {
+                background: #cde4ef;
+                font-weight: 600;
+                border-left: 3px solid #18a689;
+            }
+
+            .menu-item-left {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                flex: 1;
+                overflow: hidden;
+            }
+
+            .menu-toggle-icon {
+                font-size: 12px;
+                width: 20px;
+                cursor: pointer;
+                flex-shrink: 0;
+                color: #2c3e50;
+            }
+
+            .menu-name {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .menu-add-btn {
+                background: transparent;
+                border: none;
+                cursor: pointer;
+                font-size: 16px;
+                padding: 2px 8px;
+                border-radius: 20px;
+                color: #18a689;
+                font-weight: bold;
+                flex-shrink: 0;
+            }
+
+            .menu-add-btn:hover {
+                background: #c0d0dc;
+            }
+
+            .button-list {
+                list-style: none;
+                margin-left: 32px;
+                margin-top: 4px;
+                margin-bottom: 4px;
+                display: block;
+            }
+
+            .button-list li {
+                padding: 5px 8px;
+                margin: 2px 0;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 13px;
+                transition: 0.1s;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .button-list li:hover {
+                background: #e0ecf2;
+            }
+
+            .button-list li.active {
+                background: #cde4ef;
+                font-weight: 600;
+                border-left: 3px solid #18a689;
+            }
+
+            .right-panel {
+                flex: 1;
+                background: #f8fafc;
+                overflow-y: auto;
+                padding: 32px 40px;
+            }
+
+            .form-container {
+                background: #ffffff;
+                border-radius: 20px;
+                padding: 32px 36px;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
+                max-width: 720px;
+                margin: 0 auto;
+            }
+
+            .form-container h3 {
+                font-size: 22px;
+                font-weight: 600;
+                color: #1e2a3a;
+                margin-bottom: 28px;
+                border-left: 4px solid #18a689;
+                padding-left: 16px;
+            }
+
+            .form-group {
+                margin-bottom: 24px;
+                display: flex;
+                align-items: center;
+            }
+
+            .form-group label {
+                width: 100px;
+                font-weight: 500;
+                font-size: 14px;
+                color: #2c3e50;
+            }
+
+            .form-group input, .form-group select {
+                flex: 1;
+                padding: 10px 14px;
+                border: 1px solid #cfdde6;
+                border-radius: 12px;
+                font-size: 14px;
+                background: #ffffff;
+                transition: 0.2s;
+            }
+
+            .form-group input:focus, .form-group select:focus {
+                outline: none;
+                border-color: #18a689;
+                box-shadow: 0 0 0 3px rgba(24, 166, 137, 0.15);
+            }
+
+            .form-actions {
+                margin-top: 32px;
+                padding-left: 100px;
+                display: flex;
+                gap: 14px;
+            }
+
+            button {
+                padding: 8px 22px;
+                border-radius: 40px;
+                border: none;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 500;
+                transition: 0.2s;
+            }
+
+            .btn-save {
+                background: #18a689;
+                color: white;
+                box-shadow: 0 2px 4px rgba(24, 166, 137, 0.2);
+            }
+
+            .btn-save:hover {
+                background: #1ab394;
+                transform: translateY(-1px);
+            }
+
+            .btn-update {
+                background: #f39c12;
+                color: white;
+            }
+
+            .btn-update:hover {
+                background: #e67e22;
+            }
+
+            .btn-delete {
+                background: #e74c3c;
+                color: white;
+            }
+
+            .btn-delete:hover {
+                background: #c0392b;
+            }
+
+            .btn-cancel {
+                background: #95a5a6;
+                color: white;
+            }
+
+            .btn-cancel:hover {
+                background: #7f8c8d;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="left-sidebar">
+            <button id="topAddDirBtn" class="add-dir-btn"  shiro:hasPermission="system:menu:add">➕ 新建目录</button>
+            <dl class="leftmenu">
+                <th:block th:each="dir : ${menuTree}">
+                    <dd>
+                        <div class="title" th:attr="data-id=${dir.id}" data-type="1">
+                            <div class="title-left">
+                                <span class="toggle-icon">▼</span>
+                                <span class="dir-icon">📁</span>
+                                <span class="dir-name" th:text="${dir.name}"></span>
+                            </div>
+                            <button class="dir-add-btn" th:attr="data-id=${dir.id}"  shiro:hasPermission="system:menu:add">➕</button>
+                        </div>
+                        <ul class="menuson">
+                            <th:block th:each="menu : ${dir.subMenus}">
+                                <li class="menu-item-wrapper" th:attr="data-id=${menu.id}" data-type="2">
+                                    <div class="menu-item-row">
+                                        <div class="menu-item-left">
+                                            <span class="menu-toggle-icon">▼</span>
+                                            <span class="menu-name" th:text="${menu.name}"></span>
+                                        </div>
+                                        <button class="menu-add-btn" th:attr="data-id=${menu.id}"   shiro:hasPermission="system:menu:add">➕</button>
+                                    </div>
+                                    <ul class="button-list"
+                                        th:if="${menu.subMenus != null && !menu.subMenus.isEmpty()}">
+                                        <li th:each="btn : ${menu.subMenus}" class="button-item"
+                                            th:attr="data-id=${btn.id}" data-type="3">
+                                            <span th:text="${btn.name}"></span>
+                                        </li>
+                                    </ul>
+                                </li>
+                            </th:block>
+                        </ul>
+                    </dd>
+                </th:block>
+            </dl>
+        </div>
+        <div class="right-panel" id="rightPanel">
+            <div class="form-container">
+                <p>请从左侧菜单选择或点击➕新建</p>
+            </div>
+        </div>
+
+        <script th:inline="javascript">
+
+            console.log('当前用户权限:', userPermissions);
+            var currentSelectedId = null;
+            var globalMenuTree = /*[[${menuTree}]]*/ [];
+
+            function log(msg) {
+                console.log('[MenuMgr] ' + msg);
+            }
+
+            // 递归查找节点是否有子节点（简化版）
+            function hasChildrenById(id, tree) {
+                function search(nodes) {
+                    if (!nodes || !nodes.length) return false;
+
+                    for (var i = 0; i < nodes.length; i++) {
+                        var node = nodes[i];
+                        if (node.id == id) {
+                            // type=1(目录)或type=2(菜单)：检查 subMenus
+                            // type=3(按钮)：返回 false
+                            return node.type !== 3 && node.subMenus && node.subMenus.length > 0;
+                        }
+                        if (node.subMenus && node.subMenus.length) {
+                            if (search(node.subMenus)) return true;
+                        }
+                    }
+                    return false;
+                }
+
+                return search(tree);
+            }
+
+
+
+            document.addEventListener('DOMContentLoaded', function () {
+                log('页面加载完成');
+
+                // ---------- 折叠一级目录 + 点击目录加载详情 ----------
+                function initDirCollapse() {
+                    var titles = document.querySelectorAll('.title');
+                    for (var i = 0; i < titles.length; i++) {
+                        titles[i].removeEventListener('click', titleClickHandler);
+                        titles[i].addEventListener('click', titleClickHandler);
+                    }
+
+                    function titleClickHandler(e) {
+                        if (e.target.classList && e.target.classList.contains('dir-add-btn')) return;
+                        var $title = this;
+                        var $menuson = $title.nextElementSibling;
+                        if ($menuson && $menuson.classList.contains('menuson')) {
+                            var $icon = $title.querySelector('.toggle-icon');
+                            if (window.getComputedStyle($menuson).display === 'none') {
+                                $menuson.style.display = 'block';
+                                if ($icon) $icon.textContent = '▼';
+                            } else {
+                                $menuson.style.display = 'none';
+                                if ($icon) $icon.textContent = '▶';
+                            }
+                        }
+                        var dirId = $title.getAttribute('data-id');
+                        if (dirId) openEditForm(parseInt(dirId));
+                        e.stopPropagation();
+                    }
+
+                    var allMenuson = document.querySelectorAll('.menuson');
+                    for (var j = 0; j < allMenuson.length; j++) allMenuson[j].style.display = 'block';
+                }
+
+                // ---------- 折叠二级菜单（菜单项下的按钮列表） ----------
+                function initMenuCollapse() {
+                    var icons = document.querySelectorAll('.menu-toggle-icon');
+                    for (var i = 0; i < icons.length; i++) {
+                        icons[i].removeEventListener('click', iconClick);
+                        icons[i].addEventListener('click', iconClick);
+                    }
+
+                    function iconClick(e) {
+                        e.stopPropagation();
+                        var $icon = this;
+                        var $row = $icon.closest('.menu-item-row');
+                        var $btnList = $row.nextElementSibling;
+                        if ($btnList && $btnList.classList.contains('button-list')) {
+                            if (window.getComputedStyle($btnList).display === 'none') {
+                                $btnList.style.display = 'block';
+                                $icon.textContent = '▼';
+                            } else {
+                                $btnList.style.display = 'none';
+                                $icon.textContent = '▶';
+                            }
+                        }
+                    }
+
+                    var allButtonLists = document.querySelectorAll('.button-list');
+                    for (var j = 0; j < allButtonLists.length; j++) allButtonLists[j].style.display = 'block';
+                }
+
+
+                // ---------- 动态表单生成 ----------
+                function showForm(mode, data, presetType, presetPid, hasChildrenFlag) {
+                    var rightPanel = document.getElementById('rightPanel');
+                    var isEdit = (mode === 'edit');
+                    var menu = data || {};
+                    var typeVal = isEdit ? (menu.type !== undefined ? menu.type : 1) : (presetType !== undefined ? presetType : 1);
+                    var pidVal = isEdit ? (menu.pid !== undefined ? menu.pid : 0) : (presetPid !== undefined ? presetPid : 0);
+                    var idVal = menu.id || '';
+                    var nameVal = escapeHtml(menu.name || '');
+                    var orderVal = menu.order_num !== undefined ? menu.order_num : 0;
+                    var perVal = escapeHtml(menu.permission || '');
+                    var urlVal = escapeHtml(menu.url || '');
+                    var iconVal = '';
+                    if (typeVal === 1) {
+                        if (isEdit && menu.icon) iconVal = escapeHtml(menu.icon);
+                        else iconVal = 'images/leftico01.png';
+                    } else {
+                        iconVal = escapeHtml(menu.icon || '');
+                    }
+
+                    var showUrl = (typeVal === 2);
+                    var showIcon = (typeVal === 1);
+                    var showDelete = hasPermission("system:menu:delete")&&isEdit && !hasChildrenFlag;  // 编辑且无子节点时才显示删除按钮
+                    var showSave   = hasAnyPermission("system:menu:add","system:menu:update");
+                    var html = '<div class="form-container">' +
+                        '<h3>' + (isEdit ? '编辑' : '新增') + (typeVal === 1 ? '目录' : (typeVal === 2 ? '菜单' : '按钮')) + '</h3>' +
+                        '<form id="menuForm">';
+
+                    html += '<input type="hidden" id="menuId" value="' + (isEdit ? idVal : '') + '">';
+                    html += '<input type="hidden" id="menuPid" value="' + pidVal + '">';
+                    html += '<input type="hidden" id="menuType" value="' + typeVal + '">';
+
+                    html += '<div class="form-group"><label>名称：</label><input type="text" id="menuName" value="' + nameVal + '" required></div>';
+                    html += '<div class="form-group"><label>排序号：</label><input type="number" id="menuOrder" value="' + orderVal + '"></div>';
+                    html += '<div class="form-group"><label>权限标识：</label><input type="text" id="menuPermission" value="' + perVal + '"></div>';
+
+                    if (showUrl) {
+                        html += '<div class="form-group"><label>URL：</label><input type="text" id="menuUrl" value="' + urlVal + '"></div>';
+                    } else {
+                        html += '<input type="hidden" id="menuUrl" value="' + urlVal + '">';
+                    }
+
+                    if (showIcon) {
+                        html += '<div class="form-group"><label>图标：</label><input type="text" id="menuIcon" value="' + iconVal + '" placeholder="请输入图标路径"></div>';
+                    } else {
+                        html += '<input type="hidden" id="menuIcon" value="' + iconVal + '">';
+                    }
+
+                    html += '<div class="form-actions">';
+                    if (showSave){
+                        html +='<button type="button" id="saveBtn" class="btn-save" >保存</button>';
+                    }
+
+                    html +='<button type="button" id="cancelBtn" class="btn-cancel">取消</button>';
+                    if (showDelete) {
+                        html += '<button type="button" id="deleteBtn" class="btn-delete">删除</button>';
+                    }
+                    html += '</div></form></div>';
+
+                    rightPanel.innerHTML = html;
+                    if (showSave) {
+                        document.getElementById('saveBtn').addEventListener('click', function () {
+                            saveMenu(mode);
+                        });
+                    }
+                    document.getElementById('cancelBtn').addEventListener('click', function () {
+                        rightPanel.innerHTML = '<div class="form-container"><p>请从左侧菜单选择或点击➕新建</p></div>';
+                    });
+                    if (showDelete) {
+                        document.getElementById('deleteBtn').addEventListener('click', function () {
+                            var id = document.getElementById('menuId').value;
+                            if (id) deleteMenuConfirm(parseInt(id), document.getElementById('menuName').value);
+                        });
+                    }
+                }
+
+                function saveMenu(mode) {
+                    var menuData = {
+                        id: mode === 'edit' ? (document.getElementById('menuId').value ? parseInt(document.getElementById('menuId').value) : null) : null,
+                        name: document.getElementById('menuName').value.trim(),
+                        type: parseInt(document.getElementById('menuType').value),
+                        pid: parseInt(document.getElementById('menuPid').value) || 0,
+                        url: document.getElementById('menuUrl').value,
+                        permission: document.getElementById('menuPermission').value,
+                        icon: document.getElementById('menuIcon').value,
+                        order_num: parseInt(document.getElementById('menuOrder').value) || 0
+                    };
+                    if (!menuData.name) {
+                        alert('名称不能为空');
+                        return;
+                    }
+                    ajaxPost(BASE_URL + '/menu/save', menuData, function (res) {
+                        if (res.code === 200) {
+                            alert('保存成功');
+                            location.reload();
+                        }
+                        else {
+                            alert(res.msg || '保存失败');
+                        }
+                    });
+                }
+
+                function deleteMenuConfirm(id, name) {
+                    if (!confirm('确定删除“' + name + '”及其所有子菜单吗？')) return;
+                    ajaxDelete(BASE_URL + '/menu/delete/' + id, function (res) {
+                        if (res.code === 200) {
+                            alert('删除成功');
+                            location.reload();
+                        }
+                        else {
+                            alert(res.msg || '删除失败');
+                        }
+                    });
+                }
+
+                function openEditForm(id) {
+                    currentSelectedId = id;
+                    // 判断是否有子节点（从全局树中查找）
+                    var hasChild = hasChildrenById(id, globalMenuTree);
+                    ajaxGet(BASE_URL + '/menu/info/' + id, function (res) {
+                        if (res.code === 200) {
+                            var menu = res.data;
+                            showForm('edit', menu, menu.type, menu.pid, hasChild);
+                        } else {
+                            alert('获取菜单详情失败');
+                        }
+                    });
+                }
+
+                function openAddForm(parentId, defaultType) {
+                    showForm('add', null, defaultType, parentId, false);
+                }
+
+                function escapeHtml(str) {
+                    if (!str) return '';
+                    return str.replace(/[&<>]/g, function (m) {
+                        if (m === '&') return '&amp;';
+                        if (m === '<') return '&lt;';
+                        if (m === '>') return '&gt;';
+                        return m;
+                    });
+                }
+
+                // ---------- 事件绑定 ----------
+                function bindEvents() {
+                    var leftSidebar = document.querySelector('.left-sidebar');
+                    leftSidebar.addEventListener('click', function (e) {
+                        var target = e.target;
+                        if (target.classList && target.classList.contains('dir-add-btn')) {
+                            e.stopPropagation();
+                            var parentId = target.getAttribute('data-id');
+                            openAddForm(parseInt(parentId), 2);
+                        }
+                    });
+                    leftSidebar.addEventListener('click', function (e) {
+                        var target = e.target;
+                        if (target.classList && target.classList.contains('menu-add-btn')) {
+                            e.stopPropagation();
+                            var parentId = target.getAttribute('data-id');
+                            openAddForm(parseInt(parentId), 3);
+                        }
+                    });
+                    leftSidebar.addEventListener('click', function (e) {
+                        var target = e.target;
+                        var row = target.closest('.menu-item-row');
+                        if (row && !target.closest('.menu-toggle-icon') && !target.closest('.menu-add-btn')) {
+                            e.stopPropagation();
+                            var wrapper = row.closest('.menu-item-wrapper');
+                            var id = wrapper.getAttribute('data-id');
+                            if (id) {
+                                var activeRows = document.querySelectorAll('.menu-item-row.active');
+                                for (var i = 0; i < activeRows.length; i++) activeRows[i].classList.remove('active');
+                                row.classList.add('active');
+                                openEditForm(parseInt(id));
+                            }
+                        }
+                    });
+                    leftSidebar.addEventListener('click', function (e) {
+                        var target = e.target;
+                        var btnItem = target.closest('.button-item');
+                        if (btnItem) {
+                            e.stopPropagation();
+                            var id = btnItem.getAttribute('data-id');
+                            if (id) {
+                                var activeBtns = document.querySelectorAll('.button-item.active');
+                                for (var i = 0; i < activeBtns.length; i++) activeBtns[i].classList.remove('active');
+                                btnItem.classList.add('active');
+                                openEditForm(parseInt(id));
+                            }
+                        }
+                    });
+                    var topBtn = document.getElementById('topAddDirBtn');
+                    if (topBtn) {
+                        topBtn.addEventListener('click', function () {
+                            openAddForm(0, 1);
+                        });
+                    }
+                }
+
+                initDirCollapse();
+                initMenuCollapse();
+                bindEvents();
+                log('初始化完成');
+            });
+
+        </script>
+    </body>
+</html>

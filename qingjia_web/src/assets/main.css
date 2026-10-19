@@ -1,0 +1,16 @@
+/* 全局重置。
+   MainLayout 用的是 height:100vh，而 body 默认有 8px margin，
+   不清掉的话文档总高 = 100vh + 16px，会多出一根滚动条和一圈白边。
+   （MainLayout.vue 里那个 <style scoped> 的 * 重置碰不到 body。） */
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', 'Microsoft YaHei', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

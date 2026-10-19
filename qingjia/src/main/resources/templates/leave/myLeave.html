@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:shiro="http://www.thymeleaf.org/thymeleaf-extras-shiro">
+<head th:replace="/common/template :: header(~{::title},~{::link},~{::style})">
+    <title>我的请假</title>
+</head>
+<style>
+    .mask {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+    .tip {
+        position: fixed;
+        background: #fff;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        z-index: 1000;
+        width: 560px;
+        display: none;
+        flex-direction: column;
+    }
+    #addModal { min-height: 500px; }
+    #xiaoJiaModal { min-height: 400px; }
+    #detailModal { width: 700px; min-height: 600px; }
+    .tip .tiptop {
+        padding: 10px;
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .tip .tiptop span { color: #2e8b57; font-weight: bold; font-size: 14px; }
+    .tip .tiptop a { color: red; font-size: 20px; text-decoration: none; cursor: pointer; }
+    .tipinfo { flex: 1; padding: 20px; overflow-y: auto; max-height: 500px; }
+    .form-table { width: 100%; }
+    .form-table tr { height: 50px; }
+    .form-table td.label { width: 100px; text-align: right; padding-right: 10px; vertical-align: top; padding-top: 8px; }
+    .form-table td.input { text-align: left; }
+    .form-table input, .form-table select, .form-table textarea { width: 100%; padding: 6px 4px; border: 1px solid #ccc; border-radius: 3px; box-sizing: border-box; }
+    .tipbtn { text-align: center; padding: 10px; border-top: 1px solid #eee; background: #fafafa; }
+    .tipbtn button { margin: 0 10px; padding: 6px 20px; cursor: pointer; border: none; border-radius: 3px; }
+    .tipbtn .sure { background: #2e8b57; color: white; }
+    .tipbtn .cancel { background: #ccc; }
+    .toolbar1 li { cursor: pointer; }
+    .tablelist th, .tablelist td { text-align: center; vertical-align: middle; }
+    .photo-area { display: flex; flex-direction: column; gap: 8px; }
+    .capture-buttons { display: flex; gap: 8px; }
+    .capture-buttons button { padding: 4px 12px; cursor: pointer; }
+    #photoPreview { max-width: 100px; max-height: 100px; margin-top: 5px; border-radius: 5px; display: block; }
+    .shenpi-record { background: #f9f9f9; padding: 8px; margin: 5px 0; border-radius: 4px; }
+</style>
+<body>
+
+<div class="place">
+    <span>位置：</span>
+    <ul class="placeul">
+        <li><a href="#">请假模块</a></li>
+        <li><a href="#">我的请假</a></li>
+    </ul>
+</div>
+
+<div class="rightinfo">
+
+    <div class="tools">
+        <form th:action="@{/leave/student/index}" method="get" name="queryForm">
+            <ul class="toolbar">
+                <li><input type="hidden" name="curPage" value="1"/></li>
+                <li>
+                    <label>状态：</label>
+                    <select name="status" id="queryStatus">
+                        <option value="">全部</option>
+                        <option th:each="s : ${statusList}" th:value="${s.id}" th:text="${s.applicationStutas}"
+                                th:selected="${status != null && status == s.id}"></option>
+                    </select>
+                </li>
+                <li><span><img th:src="@{/images/ico06.png}" onclick="document.queryForm.submit();" style="cursor:pointer;"/></span></li>
+            </ul>
+        </form>
+        <ul class="toolbar1">
+            <li onclick="showAddModal();"><span><img th:src="@{/images/t01.png}"/></span><a>添加申请</a></li>
+        </ul>
+    </div>
+
+    <table class="tablelist">
+        <thead>
+        <tr>
+            <th>类型</th>
+            <th>原因</th>
+            <th>开始时间</th>
+            <th>结束时间</th>
+            <th>状态</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:if="${#lists.isEmpty(page.records)}">
+            <td colspan="6" style="text-align:center;">暂无数据</td>
+        </tr>
+        <tr th:each="app : ${page.records}">
+            <td th:text="${app.typeName}"></td>
+            <td th:text="${app.reason}"></td>
+            <td th:text="${#dates.format(app.begintime, 'yyyy-MM-dd HH:mm')}"></td>
+            <td th:text="${#dates.format(app.endtime, 'yyyy-MM-dd HH:mm')}"></td>
+            <td th:text="${app.statusName}"></td>
+            <td>
+                <!-- 待提交：显示提交按钮和删除 -->
+                <a th:if="${app.status == 1}" href="javascript:void(0);" th:onclick="|submitDraft(${app.id})|">提交</a>
+                <a th:if="${app.status == 1}" href="javascript:void(0);" th:onclick="|editApplication(${app.id})|">修改</a>
+                <a th:if="${app.status == 1}" href="javascript:void(0);" th:onclick="|deleteDraft(${app.id})|">删除</a>
+                <!-- 待销假：显示销假按钮 -->
+                <a th:if="${app.status == 5}" href="javascript:void(0);" th:onclick="|openXiaoJia(${app.id})|">销假</a>
+                <!-- 详情（所有状态） -->
+                <a href="javascript:void(0);" th:onclick="|viewDetail(${app.id})|">详情</a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <div th:replace="~{common/pageCommon::page_fragment}"></div>
+</div>
+
+<!-- 遮罩 -->
+<div id="mask" class="mask"></div>
+
+<!-- ========== 添加/修改模态框 ========== -->
+<div id="addModal" class="tip" style="left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop"><span id="modalTitle">添加请假申请</span><a class="closeModal">×</a></div>
+    <div class="tipinfo">
+        <form id="addForm">
+            <input type="hidden" id="appId"/>
+            <table class="form-table">
+                <tr>
+                    <td class="label">请假类型：</td>
+                    <td class="input">
+                        <select id="leaveType" required>
+                            <option th:each="t : ${leaveTypes}" th:value="${t.id}" th:text="${t.name}"></option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label">请假途径：</td>
+                    <td class="input"><input type="text" id="leavePath"/></td>
+                </tr>
+                <tr>
+                    <td class="label">请假原因：</td>
+                    <td class="input"><textarea id="leaveReason" rows="3"></textarea></td>
+                </tr>
+                <tr>
+                    <td class="label">开始时间：</td>
+                    <td class="input"><input type="datetime-local" id="beginTime"/></td>
+                </tr>
+                <tr>
+                    <td class="label">结束时间：</td>
+                    <td class="input"><input type="datetime-local" id="endTime"/></td>
+                </tr>
+            </table>
+        </form>
+    </div>
+    <div class="tipbtn">
+        <button id="saveDraftBtn" class="sure" style="background:#aaa;">暂存</button>
+        <button id="submitBtn" class="sure">直接提交</button>
+        <button class="cancel closeModal">取消</button>
+    </div>
+</div>
+
+<!-- ========== 销假模态框 ========== -->
+<div id="xiaoJiaModal" class="tip" style="left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop"><span>销假</span><a class="closeModal">×</a></div>
+    <div class="tipinfo">
+        <div id="xiaoJiaDetail"></div>
+        <hr/>
+        <form id="xiaoJiaForm">
+            <input type="hidden" id="xiaoJiaAppId"/>
+            <div class="photo-area">
+                <video id="cameraVideo" autoplay playsinline style="width:200px; border:1px solid #ccc; border-radius:4px;"></video>
+                <div class="capture-buttons">
+                    <button type="button" id="openCameraBtn">打开摄像头</button>
+                    <button type="button" id="captureBtn" disabled>拍照</button>
+                    <button type="button" id="closeCameraBtn" style="display:none;">关闭摄像头</button>
+                </div>
+                <div>
+                    <span>当前照片：</span>
+                    <img id="photoPreview" style="display:none; max-width:100px; max-height:100px; border-radius:5px;">
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="tipbtn">
+        <button id="xiaoJiaSubmit" class="sure">确认销假</button>
+        <button class="cancel closeModal">取消</button>
+    </div>
+</div>
+
+<!-- ========== 详情模态框 ========== -->
+<div id="detailModal" class="tip" style="left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop"><span>请假详情</span><a class="closeModal">×</a></div>
+    <div class="tipinfo" id="detailContent"></div>
+    <div class="tipbtn"><button class="cancel closeModal">关闭</button></div>
+</div>
+
+<script th:src="@{/js/jquery.js}"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+
+    // ---------- 摄像头相关变量 ----------
+    var mediaStream = null;
+    var capturedBlob = null;
+    var capturedFileName = null;
+
+    // ---------- 模态框控制 ----------
+    function showModal(id) {
+        $('#' + id).css('display', 'flex');
+        $('#mask').fadeIn(200);
+    }
+    function hideModal(id) {
+        $('#' + id).fadeOut(100);
+        $('#mask').fadeOut(100);
+        if (id === 'xiaoJiaModal') closeCamera();
+    }
+    $('.closeModal').click(function() {
+        var modal = $(this).closest('.tip');
+        hideModal(modal.attr('id'));
+    });
+    $('.cancel').click(function() {
+        var modal = $(this).closest('.tip');
+        hideModal(modal.attr('id'));
+    });
+    $('#mask').click(function() {
+        $('.tip:visible').each(function() {
+            hideModal($(this).attr('id'));
+        });
+    });
+
+    // ---------- 添加/修改 ----------
+    function showAddModal() {
+        $('#addForm')[0].reset();
+        $('#appId').val('');
+        $('#modalTitle').text('添加请假申请');
+        showModal('addModal');
+    }
+    // ---------- 修改：添加/修改模态框控制 ----------
+    function showAddModal() {
+        $('#addForm')[0].reset();
+        $('#appId').val('');
+        $('#modalTitle').text('添加请假申请');    // 修改：设置标题
+        showModal('addModal');
+    }
+    function getFormData() {
+        return {
+            id: $('#appId').val() || null,
+            type: $('#leaveType').val(),
+            path: $('#leavePath').val(),
+            reason: $('#leaveReason').val(),
+            begintime: $('#beginTime').val(),
+            endtime: $('#endTime').val()
+        };
+    }
+    // 编辑申请（加载数据并显示修改模态框）
+    function editApplication(id) {
+        // 先获取申请详情（复用 detail 接口）
+        ajaxGet(BASE_URL + '/leave/student/detail/' + id, function(r) {
+            if (r.code === 200) {
+                var app = r.data;
+                // 填充表单
+                $('#appId').val(app.id);
+                $('#leaveType').val(app.type);
+                $('#leavePath').val(app.path || '');
+                $('#leaveReason').val(app.reason);
+                // 时间格式转换：将后端返回的时间字符串转为 datetime-local 可识别的格式
+                function toLocalDateTime(dateStr) {
+                    if (!dateStr) return '';
+                    var d = new Date(dateStr);
+                    var year = d.getFullYear();
+                    var month = String(d.getMonth()+1).padStart(2,'0');
+                    var day = String(d.getDate()).padStart(2,'0');
+                    var hours = String(d.getHours()).padStart(2,'0');
+                    var minutes = String(d.getMinutes()).padStart(2,'0');
+                    return year + '-' + month + '-' + day + 'T' + hours + ':' + minutes;
+                }
+                $('#beginTime').val(toLocalDateTime(app.begintime));
+                $('#endTime').val(toLocalDateTime(app.endtime));
+                // 修改标题
+                $('#modalTitle').text('修改请假申请');
+                showModal('addModal');
+            } else {
+                alert(r.msg || '加载数据失败');
+            }
+        });
+    }
+    // 暂存
+    $('#saveDraftBtn').click(function() {
+        var data = getFormData();
+        ajaxPost(BASE_URL + '/leave/student/saveDraft', data, function(r) {
+            if (r.code === 200) {
+                alert('草稿保存成功');
+                hideModal('addModal');
+                document.queryForm.submit();
+            } else {
+                alert(r.msg);
+            }
+        });
+    });
+
+    // 直接提交
+    $('#submitBtn').click(function() {
+        var data = getFormData();
+        ajaxPost(BASE_URL + '/leave/student/submit', data, function(r) {
+            if (r.code === 200) {
+                alert('提交成功');
+                hideModal('addModal');
+                document.queryForm.submit();
+            } else alert(r.msg);
+        });
+    });
+
+    // ---------- 提交草稿 ----------
+    function submitDraft(id) {
+        if (confirm('确定提交该申请吗？')) {
+            ajaxPost(BASE_URL + '/leave/student/submitDraft/' + id, {}, function(r) {
+                if (r.code === 200) {
+                    alert('提交成功');
+                    document.queryForm.submit();
+                } else alert(r.msg);
+            });
+        }
+    }
+
+    // ---------- 删除草稿 ----------
+    function deleteDraft(id) {
+        if (confirm('确定删除该草稿吗？')) {
+            ajaxDelete(BASE_URL + '/leave/student/delete/' + id, function(r) {
+                if (r.code === 200) {
+                    alert('删除成功');
+                    document.queryForm.submit();
+                } else alert(r.msg);
+            });
+        }
+    }
+
+    // ---------- 销假 ----------
+    function openXiaoJia(appId) {
+        // 加载申请详情
+        ajaxGet(BASE_URL + '/leave/student/detail/' + appId, function(r) {
+            if (r.code === 200) {
+                var app = r.data;
+                var html = '<p><strong>类型：</strong>' + app.typeName + '</p>';
+                html += '<p><strong>原因：</strong>' + app.reason + '</p>';
+                html += '<p><strong>时间：</strong>' + new Date(app.begintime).toLocaleString() + ' 至 ' + new Date(app.endtime).toLocaleString() + '</p>';
+                $('#xiaoJiaDetail').html(html);
+                $('#xiaoJiaAppId').val(appId);
+                resetCameraUI();
+                showModal('xiaoJiaModal');
+            } else alert(r.msg);
+        });
+    }
+
+    // 摄像头操作
+    function openCamera() {
+        if (mediaStream) closeCamera();
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function(stream) {
+                mediaStream = stream;
+                var video = document.getElementById('cameraVideo');
+                video.srcObject = stream;
+                video.play();
+                document.getElementById('openCameraBtn').style.display = 'none';
+                document.getElementById('captureBtn').disabled = false;
+                document.getElementById('closeCameraBtn').style.display = 'inline-block';
+            })
+            .catch(function(err) {
+                alert('无法访问摄像头，请检查权限。');
+            });
+    }
+
+    function capturePhoto() {
+        var video = document.getElementById('cameraVideo');
+        if (!video || video.readyState !== 4) { alert('摄像头未就绪'); return; }
+        var canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        canvas.toBlob(function(blob) {
+            capturedBlob = blob;
+            capturedFileName = 'xiaojia_' + Date.now() + '.jpg';
+            var url = URL.createObjectURL(blob);
+            document.getElementById('photoPreview').src = url;
+            document.getElementById('photoPreview').style.display = 'block';
+        }, 'image/jpeg', 0.9);
+    }
+
+    function closeCamera() {
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(function(t) { t.stop(); });
+            mediaStream = null;
+        }
+        var video = document.getElementById('cameraVideo');
+        if (video) video.srcObject = null;
+        document.getElementById('openCameraBtn').style.display = 'inline-block';
+        document.getElementById('captureBtn').disabled = true;
+        document.getElementById('closeCameraBtn').style.display = 'none';
+    }
+
+    function resetCameraUI() {
+        closeCamera();
+        capturedBlob = null;
+        capturedFileName = null;
+        document.getElementById('photoPreview').style.display = 'none';
+        document.getElementById('photoPreview').src = '';
+    }
+
+    document.getElementById('openCameraBtn').addEventListener('click', openCamera);
+    document.getElementById('captureBtn').addEventListener('click', capturePhoto);
+    document.getElementById('closeCameraBtn').addEventListener('click', closeCamera);
+
+    // 提交销假
+    $('#xiaoJiaSubmit').click(function() {
+        var appId = $('#xiaoJiaAppId').val();
+        if (!capturedBlob) {
+            alert('请先拍照');
+            return;
+        }
+        var formData = new FormData();
+        formData.append('applicationId', appId);
+        var photoFile = new File([capturedBlob], capturedFileName || 'photo.jpg', { type: 'image/jpeg' });
+        formData.append('photo', photoFile);
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', BASE_URL + '/leave/student/xiaojia', true);
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    try {
+                        var r = JSON.parse(xhr.responseText);
+                        if (r.code === 200) {
+                            alert('销假成功');
+                            hideModal('xiaoJiaModal');
+                            document.queryForm.submit();
+                        } else {
+                            alert(r.msg);
+                        }
+
+                    } catch(e) { alert('请求失败'); }
+                } else alert('请求失败');
+            }
+        };
+        xhr.send(formData);
+    });
+
+    // ---------- 查看详情 ----------
+    function viewDetail(id) {
+        ajaxGet(BASE_URL + '/leave/student/detail/' + id, function(r) {
+            if (r.code === 200) {
+                var app = r.data;
+                var html = '<p><strong>类型：</strong>' + app.typeName + '</p>';
+                html += '<p><strong>途径：</strong>' + (app.path || '无') + '</p>';
+                html += '<p><strong>原因：</strong>' + app.reason + '</p>';
+                html += '<p><strong>开始时间：</strong>' + new Date(app.begintime).toLocaleString() + '</p>';
+                html += '<p><strong>结束时间：</strong>' + new Date(app.endtime).toLocaleString() + '</p>';
+                html += '<p><strong>状态：</strong>' + app.statusName + '</p>';
+
+                // 审批记录
+                if (app.shenPiList && app.shenPiList.length > 0) {
+                    html += '<h4>审批记录</h4>';
+                    app.shenPiList.forEach(function(sp) {
+                        var roleName = sp.roleType==1?'班主任':sp.roleType==2?'辅导员':sp.roleType==3?'院领导':'';
+                        html += '<div class="shenpi-record">';
+                        html += '<p><strong>' + roleName + '：</strong>' + (sp.result==1?'通过':'不通过') + '</p>';
+                        html += '<p>意见：' + sp.opinion + '</p>';
+                        html += '<p>审批人：' + sp.teacherName + '  ' + new Date(sp.createTime).toLocaleString() + '</p>';
+                        html += '</div>';
+                    });
+                }
+
+                // 销假信息
+                if (app.xiaoJiaPhotoUrl) {
+                    html += '<p><strong>销假照片：</strong><br/><img src="' + BASE_URL + app.xiaoJiaPhotoUrl + '" style="max-width:200px;"/></p>';
+                    html += '<p><strong>销假时间：</strong>' + new Date(app.xiaoJiaTime).toLocaleString() + '</p>';
+                }
+
+                $('#detailContent').html(html);
+                showModal('detailModal');
+            } else alert(r.msg);
+        });
+    }
+
+    // ---------- 页面初始化 ----------
+    $(document).ready(function() {
+        $('.tablelist tbody tr:odd').addClass('odd');
+    });
+    /*]]>*/
+</script>
+</body>
+</html>
+

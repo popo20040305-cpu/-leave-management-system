@@ -1,0 +1,32 @@
+# ---------- 依赖与构建产物 ----------
+node_modules/
+target/
+dist/
+build/
+*.class
+
+# ---------- IDE ----------
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# ---------- 日志与运行产物 ----------
+*.log
+qingjia/upload/
+qingjia/src/main/resources/upload/
+
+# ---------- 本地敏感配置（不要提交！） ----------
+**/application.yml
+!**/application.yml.example
+**/application-local.yml
+.env.local
+*.local
+
+# ---------- 压缩包与资料 ----------
+*.rar
+*.zip
+*.7z
+*.docx
+*.pptx

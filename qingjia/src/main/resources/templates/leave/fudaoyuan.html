@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:shiro="http://www.thymeleaf.org/thymeleaf-extras-shiro">
+<head th:replace="/common/template :: header(~{::title},~{::link},~{::style})">
+    <title>辅导员审批</title>
+</head>
+<style>
+    .mask { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; }
+    .tip { position:fixed; background:#fff; border-radius:5px; box-shadow:0 0 10px rgba(0,0,0,0.3); z-index:1000; width:640px; display:none; flex-direction:column; }
+    #detailModal { width:720px; min-height:400px; }
+    #approveModal { width:680px; min-height:480px; }
+    .tip .tiptop { padding:10px; background:#f5f5f5; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; align-items:center; }
+    .tip .tiptop span { color:#2e8b57; font-weight:bold; font-size:14px; }
+    .tip .tiptop a { color:red; font-size:20px; text-decoration:none; cursor:pointer; }
+    .tipinfo { flex:1; padding:20px; overflow-y:auto; max-height:500px; }
+    .form-table { width:100%; }
+    .form-table tr { height:50px; }
+    .form-table td.label { width:120px; text-align:right; padding-right:10px; vertical-align:top; padding-top:8px; }
+    .form-table td.input { text-align:left; }
+    .form-table input, .form-table select, .form-table textarea { width:100%; padding:6px 4px; border:1px solid #ccc; border-radius:3px; box-sizing:border-box; }
+    .tipbtn { text-align:center; padding:10px; border-top:1px solid #eee; background:#fafafa; }
+    .tipbtn button { margin:0 10px; padding:6px 20px; cursor:pointer; border:none; border-radius:3px; }
+    .tipbtn .sure { background:#2e8b57; color:white; }
+    .tipbtn .cancel { background:#ccc; }
+    .toolbar1 li { cursor:pointer; }
+    .tablelist th, .tablelist td { text-align:center; vertical-align:middle; }
+    .shenpi-record { background:#f9f9f9; padding:8px; margin:5px 0; border-radius:4px; }
+    .approve-detail { margin-bottom:15px; }
+</style>
+<body>
+
+<div class="place">
+    <span>位置：</span>
+    <ul class="placeul">
+        <li><a href="#">请假模块</a></li>
+        <li><a href="#">辅导员审批</a></li>
+    </ul>
+</div>
+
+<div class="rightinfo">
+
+    <div class="tools">
+        <form th:action="@{/leave/fudaoyuan/index}" method="get" name="queryForm">
+            <ul class="toolbar">
+                <li><input type="hidden" name="curPage" value="1"/></li>
+                <li>
+                    <label>状态：</label>
+                    <select name="status" id="queryStatus">
+                        <option value="">全部</option>
+                        <option th:each="s : ${statusList}" th:value="${s.id}" th:text="${s.applicationStutas}"
+                                th:selected="${selectedStatus != null && selectedStatus == s.id}"></option>
+                    </select>
+                </li>
+                <li>
+                    <label>年级：</label>
+                    <select name="grade" id="queryGrade">
+                        <option value="">全部</option>
+                        <option th:each="g : ${grades}" th:value="${g.grade}" th:text="${g.grade}"
+                                th:selected="${selectedGrade != null && selectedGrade == g.grade}"></option>
+                    </select>
+                </li>
+                <li>
+                    <label>班级：</label>
+                    <select name="classId" id="queryClass">
+                        <option value="">全部班级</option>
+                        <option th:each="cls : ${classList}" th:value="${cls.id}" th:text="${cls.num}"
+                                th:selected="${selectedClassId != null && selectedClassId == cls.id}"></option>
+                    </select>
+                </li>
+                <li><span><img th:src="@{/images/ico06.png}" onclick="document.queryForm.submit();" style="cursor:pointer;"/></span></li>
+            </ul>
+        </form>
+    </div>
+
+    <table class="tablelist">
+        <thead>
+        <tr>
+            <th>学生</th>
+            <th>班级</th>
+            <th>类型</th>
+            <th>原因</th>
+            <th>开始时间</th>
+            <th>结束时间</th>
+            <th>状态</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:if="${#lists.isEmpty(page.records)}">
+            <td colspan="8" style="text-align:center;">暂无数据</td>
+        </tr>
+        <tr th:each="app : ${page.records}">
+            <td th:text="${app.studentName}"></td>
+            <td th:text="${app.className}"></td>
+            <td th:text="${app.typeName}"></td>
+            <td th:text="${app.reason}"></td>
+            <td th:text="${#dates.format(app.begintime, 'yyyy-MM-dd HH:mm')}"></td>
+            <td th:text="${#dates.format(app.endtime, 'yyyy-MM-dd HH:mm')}"></td>
+            <td th:text="${app.statusName}"></td>
+            <td>
+                <!-- 如果状态是待辅导员审批(3)，显示审批按钮 -->
+                <a th:if="${app.status == 3}" href="javascript:void(0);" th:onclick="|openApprove(${app.id})|">审批</a>
+                <a href="javascript:void(0);" th:onclick="|viewDetail(${app.id})|">详情</a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <div th:replace="~{common/pageCommon::page_fragment}"></div>
+</div>
+
+<!-- 遮罩 -->
+<div id="mask" class="mask"></div>
+
+<!-- ========== 详情模态框 ========== -->
+<div id="detailModal" class="tip" style="left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop"><span>请假详情</span><a class="closeModal">×</a></div>
+    <div class="tipinfo" id="detailContent"></div>
+    <div class="tipbtn"><button class="cancel closeModal">关闭</button></div>
+</div>
+
+<!-- ========== 审批模态框 ========== -->
+<div id="approveModal" class="tip" style="left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop"><span>审批</span><a class="closeModal">×</a></div>
+    <div class="tipinfo">
+        <div id="approveDetail" class="approve-detail"></div>
+        <hr/>
+        <form id="approveForm">
+            <input type="hidden" id="approveAppId"/>
+            <table class="form-table">
+                <tr>
+                    <td class="label">审批结果：</td>
+                    <td class="input">
+                        <select id="approveResult">
+                            <option value="1">通过</option>
+                            <option value="2">不通过</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label">审批意见：</td>
+                    <td class="input"><textarea id="approveOpinion" rows="3">审批通过</textarea></td>
+                </tr>
+            </table>
+        </form>
+    </div>
+    <div class="tipbtn">
+        <button id="approveSubmit" class="sure">确定</button>
+        <button class="cancel closeModal">取消</button>
+    </div>
+</div>
+
+<script th:src="@{/js/jquery.js}"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    var BASE_URL = 'http://127.0.0.1:8089/qingjia';
+    // 登录用户的学院ID（从页面注入）
+    var collegeId = /*[[${loginUser.teacher.collegeId}]]*/ null;
+
+    // ---------- 模态框控制 ----------
+    function showModal(id) {
+        $('#' + id).css('display', 'flex');
+        $('#mask').fadeIn(200);
+    }
+    function hideModal(id) {
+        $('#' + id).fadeOut(100);
+        $('#mask').fadeOut(100);
+    }
+    $('.closeModal').click(function() {
+        var modal = $(this).closest('.tip');
+        hideModal(modal.attr('id'));
+    });
+    $('.cancel').click(function() {
+        var modal = $(this).closest('.tip');
+        hideModal(modal.attr('id'));
+    });
+    $('#mask').click(function() {
+        $('.tip:visible').each(function() {
+            hideModal($(this).attr('id'));
+        });
+    });
+
+    // ---------- 年级变更加载班级 ----------
+    $('#queryGrade').change(function() {
+        var grade = $(this).val();
+        if (collegeId) {
+            $.ajax({
+                url: BASE_URL + '/leave/fudaoyuan/getClasses',
+                type: 'GET',
+                data: { grade: grade },
+                success: function(res) {
+                    if (res.code === 200) {
+                        var classList = res.data;
+                        var html = '<option value="">全部班级</option>';
+                        for (var i = 0; i < classList.length; i++) {
+                            html += '<option value="' + classList[i].id + '">' + classList[i].num + '</option>';
+                        }
+                        $('#queryClass').html(html);
+                    }
+                }
+            });
+        }
+    });
+
+    // ---------- 查看详情 ----------
+    function viewDetail(id) {
+        ajaxGet(BASE_URL + '/leave/fudaoyuan/detail/' + id, function(r) {
+            if (r.code === 200) {
+                var app = r.data;
+                var html = '<p><strong>学生：</strong>' + app.studentName + '</p>';
+                html += '<p><strong>班级：</strong>' + app.className + '</p>';
+                html += '<p><strong>类型：</strong>' + app.typeName + '</p>';
+                html += '<p><strong>途径：</strong>' + (app.path || '无') + '</p>';
+                html += '<p><strong>原因：</strong>' + app.reason + '</p>';
+                html += '<p><strong>开始时间：</strong>' + new Date(app.begintime).toLocaleString() + '</p>';
+                html += '<p><strong>结束时间：</strong>' + new Date(app.endtime).toLocaleString() + '</p>';
+                html += '<p><strong>状态：</strong>' + app.statusName + '</p>';
+
+                if (app.shenPiList && app.shenPiList.length > 0) {
+                    html += '<h4>审批记录</h4>';
+                    app.shenPiList.forEach(function(sp) {
+                        var roleName = sp.roleType==1?'班主任':sp.roleType==2?'辅导员':sp.roleType==3?'院领导':'';
+                        html += '<div class="shenpi-record">';
+                        html += '<p><strong>' + roleName + '：</strong>' + (sp.result==1?'通过':'不通过') + '</p>';
+                        html += '<p>意见：' + sp.opinion + '</p>';
+                        html += '<p>审批人：' + sp.teacherName + '  ' + new Date(sp.createTime).toLocaleString() + '</p>';
+                        html += '</div>';
+                    });
+                }
+
+                if (app.xiaoJiaPhotoUrl) {
+                    html += '<p><strong>销假照片：</strong><br/><img src="' + BASE_URL + app.xiaoJiaPhotoUrl + '" style="max-width:200px;"/></p>';
+                    html += '<p><strong>销假时间：</strong>' + new Date(app.xiaoJiaTime).toLocaleString() + '</p>';
+                }
+
+                $('#detailContent').html(html);
+                showModal('detailModal');
+            } else alert(r.msg);
+        });
+    }
+
+    // ---------- 打开审批模态框 ----------
+    function openApprove(id) {
+        ajaxGet(BASE_URL + '/leave/fudaoyuan/detail/' + id, function(r) {
+            if (r.code === 200) {
+                var app = r.data;
+                var html = '<p><strong>学生：</strong>' + app.studentName + '</p>';
+                html += '<p><strong>班级：</strong>' + app.className + '</p>';
+                html += '<p><strong>类型：</strong>' + app.typeName + '</p>';
+                html += '<p><strong>原因：</strong>' + app.reason + '</p>';
+                html += '<p><strong>时间：</strong>' + new Date(app.begintime).toLocaleString() + ' 至 ' + new Date(app.endtime).toLocaleString() + '</p>';
+                if (app.shenPiList && app.shenPiList.length > 0) {
+                    html += '<h4>已有审批记录</h4>';
+                    app.shenPiList.forEach(function(sp) {
+                        var roleName = sp.roleType==1?'班主任':sp.roleType==2?'辅导员':sp.roleType==3?'院领导':'';
+                        html += '<div class="shenpi-record">';
+                        html += '<p><strong>' + roleName + '：</strong>' + (sp.result==1?'通过':'不通过') + '</p>';
+                        html += '<p>意见：' + sp.opinion + '</p>';
+                        html += '<p>审批人：' + sp.teacherName + '  ' + new Date(sp.createTime).toLocaleString() + '</p>';
+                        html += '</div>';
+                    });
+                }
+                $('#approveDetail').html(html);
+                $('#approveAppId').val(id);
+                $('#approveResult').val(1);
+                $('#approveOpinion').val('审批通过');
+                showModal('approveModal');
+            } else alert(r.msg);
+        });
+    }
+
+    // ---------- 提交审批 ----------
+    $('#approveSubmit').click(function() {
+        var appId = $('#approveAppId').val();
+        var result = $('#approveResult').val();
+        var opinion = $('#approveOpinion').val().trim();
+        if (!opinion) {
+            alert('请输入审批意见');
+            return;
+        }
+        ajaxPost(BASE_URL + '/leave/fudaoyuan/approve', {
+            applicationId: appId,
+            result: result,
+            opinion: opinion
+        }, function(r) {
+            if (r.code === 200) {
+                alert('审批成功');
+                hideModal('approveModal');
+                document.queryForm.submit();
+            } else alert(r.msg);
+        });
+    });
+
+    // ---------- 页面初始化 ----------
+    $(document).ready(function() {
+        $('.tablelist tbody tr:odd').addClass('odd');
+    });
+    /*]]>*/
+</script>
+</body>
+</html>

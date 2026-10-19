@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:shiro="http://www.thymeleaf.org/thymeleaf-extras-shiro">
+<head th:replace="/common/template :: header(~{::title},~{::link},~{::style})">
+    <title>教师管理</title>
+</head>
+<style>
+    .mask {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+
+    .tip {
+        position: fixed;
+        background: #fff;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+        width: 560px;
+        display: none;
+        flex-direction: column;
+    }
+
+    #teacherModal {
+        min-height: 600px;
+    }
+
+    #pwdModal {
+        width: 420px;
+        min-height: 300px;
+    }
+
+    #roleModal {
+        width: 480px;
+        min-height: 500px;
+    }
+
+    .tip .tiptop {
+        padding: 10px;
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        cursor: move;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .tip .tiptop span {
+        color: #2e8b57;
+        font-weight: bold;
+        font-size: 14px;
+    }
+
+    .tip .tiptop a {
+        color: red;
+        font-size: 20px;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .tipinfo {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+    }
+
+    .form-table {
+        width: 100%;
+    }
+
+    .form-table tr {
+        height: 50px;
+    }
+
+    .form-table td.label {
+        width: 100px;
+        text-align: right;
+        padding-right: 10px;
+        vertical-align: top;
+        padding-top: 8px;
+    }
+
+    .form-table td.input {
+        text-align: left;
+    }
+
+    .form-table input, .form-table select {
+        width: 100%;
+        padding: 6px 4px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        box-sizing: border-box;
+    }
+
+    .tipbtn {
+        text-align: center;
+        padding: 10px;
+        border-top: 1px solid #eee;
+        background: #fafafa;
+    }
+
+    .tipbtn button {
+        margin: 0 10px;
+        padding: 6px 20px;
+        cursor: pointer;
+    }
+
+    .tipbtn .sure {
+        background: #2e8b57;
+        color: white;
+        border: none;
+        border-radius: 3px;
+    }
+
+    .tipbtn .cancel {
+        background: #ccc;
+        border: none;
+        border-radius: 3px;
+    }
+
+    .toolbar1 li {
+        cursor: pointer;
+    }
+
+    .tablelist th, .tablelist td {
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .teacher-photo {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .photo-area {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .video-preview {
+        width: 100%;
+        max-width: 200px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    .capture-buttons {
+        display: flex;
+        gap: 8px;
+    }
+
+    .capture-buttons button {
+        padding: 4px 12px;
+        cursor: pointer;
+    }
+
+    #photoPreview {
+        max-width: 100px;
+        max-height: 100px;
+        margin-top: 5px;
+        border-radius: 5px;
+        display: block;
+    }
+
+    #roleCheckboxGroup {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    #roleCheckboxGroup div {
+        padding: 5px 0;
+    }
+</style>
+<body>
+<div class="place">
+    <span>位置：</span>
+    <ul class="placeul">
+        <li><a href="#">基础信息</a></li>
+        <li><a href="#">教师管理</a></li>
+    </ul>
+</div>
+
+<div class="rightinfo">
+    <div class="tools" shiro:hasPermission="baseinfo:teacher:qurey">
+        <form th:action="@{/teacher/query}" method="get" name="queryForm">
+            <ul class="toolbar">
+                <li><input type="hidden" name="curPage" value="1"/></li>
+                <li><label>教师姓名：</label><input type="text" name="name"
+                                               th:value="${teacherQuery != null ? teacherQuery.name : ''}"
+                                               style="height:25px; border:solid #0b3a58"/></li>
+                <li><label>教师编号：</label><input type="text" name="num"
+                                               th:value="${teacherQuery != null ? teacherQuery.num : ''}"
+                                               style="height:25px; border:solid #0b3a58"/></li>
+                <li>
+                    <label>所属学院：</label>
+                    <select name="collegeId" style="height:31px; border:solid #0b3a58">
+                        <option th:if="${colleges.size() > 1}" value="">全部</option>
+                        <option th:each="college : ${colleges}" th:value="${college.id}" th:text="${college.name}"
+                                th:selected="${teacherQuery != null && teacherQuery.collegeId != null && teacherQuery.collegeId == college.id}"></option>
+                    </select>
+                </li>
+                <li><span><img th:src="@{/images/ico06.png}" onclick="document.queryForm.submit();"
+                               style="cursor:pointer;"/></span></li>
+            </ul>
+        </form>
+        <ul class="toolbar1" shiro:hasPermission="baseinfo:teacher:add">
+            <li onclick="window.showAddModal();"><span><img th:src="@{/images/t01.png}"/></span><a>添加教师</a></li>
+        </ul>
+    </div>
+
+    <table class="tablelist">
+        <thead>
+        <tr>
+            <th>头像</th>
+            <th>教师编号</th>
+            <th>教师姓名</th>
+            <th>所属学院</th>
+            <th>联系电话</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:if="${#lists.isEmpty(page.records)}">
+            <td colspan="7" style="text-align:center;">暂无数据</td>
+        </tr>
+        <tr th:each="teacher : ${page.records}">
+            <td>
+                <img th:if="${teacher.avatarUrl != null}" th:src="@{${teacher.avatarUrl}}" class="teacher-photo"/>
+                <img th:if="${teacher.avatarUrl == null}" th:src="@{/images/default_avatar.png}" class="teacher-photo"/>
+            </td>
+            <td th:text="${teacher.num}"></td>
+            <td th:text="${teacher.name}"></td>
+            <td th:text="${teacher.collegeName}"></td>
+            <td th:text="${teacher.mobile}"></td>
+            <td>
+                <a class="tablelink" href="javascript:void(0);" th:onclick="|window.editTeacher(${teacher.id})|" shiro:hasPermission="baseinfo:teacher:update">修改</a>&nbsp;
+                <a class="tablelink" href="javascript:void(0);"
+                   th:onclick="|window.deleteTeacher(${teacher.id})|"shiro:hasPermission="baseinfo:teacher:delete">删除</a>&nbsp;
+                <a class="tablelink" href="javascript:void(0);" th:onclick="|window.resetPwd(${teacher.id})|" shiro:hasPermission="baseinfo:teacher:updatepassword">重置密码</a>&nbsp;
+                <a class="tablelink" href="javascript:void(0);" th:onclick="|window.assignRole(${teacher.id})|" shiro:hasPermission="baseinfo:teacher:zdjs">指定角色</a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <div th:replace="~{common/pageCommon::page_fragment}"></div>
+</div>
+
+<div id="mask" class="mask"></div>
+
+<!-- 教师信息模态框（摄像头版本） -->
+<div id="teacherModal" class="tip" style="left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop"><span id="modalTitle">教师信息</span><a class="closeModal">×</a></div>
+    <div class="tipinfo">
+        <form id="teacherForm" enctype="multipart/form-data">
+            <input type="hidden" id="teacherId"/>
+            <table class="form-table">
+                <tr>
+                    <td class="label">教师编号：</td>
+                    <td class="input"><input type="text" id="teacherNum" required/></td>
+                </tr>
+                <tr>
+                    <td class="label">教师姓名：</td>
+                    <td class="input"><input type="text" id="teacherName" required/></td>
+                </tr>
+                <tr id="passwordRow">
+                    <td class="label">登录密码：</td>
+                    <td class="input"><input type="password" id="teacherPassword"/></td>
+                </tr>
+                <tr>
+                    <td class="label">所属学院：</td>
+                    <td class="input"><select id="teacherCollegeId" required>
+                        <option value="">请选择学院</option>
+                    </select></td>
+                </tr>
+                <tr>
+                    <td class="label">联系电话：</td>
+                    <td class="input"><input type="text" id="teacherMobile"/></td>
+                </tr>
+                <tr>
+                    <td class="label">教师照片：</td>
+                    <td class="input">
+                        <div class="photo-area">
+                            <video id="cameraVideo" autoplay playsinline
+                                   style="width:200px; border:1px solid #ccc; border-radius:4px;"></video>
+                            <div class="capture-buttons">
+                                <button type="button" id="openCameraBtn">打开摄像头</button>
+                                <button type="button" id="captureBtn" disabled>拍照</button>
+                                <button type="button" id="closeCameraBtn" style="display:none;">关闭摄像头</button>
+                            </div>
+                            <div>
+                                <span>当前照片：</span>
+                                <img id="photoPreview"
+                                     style="display:none; max-width:100px; max-height:100px; border-radius:5px;">
+                                <input type="hidden" id="capturedPhotoData"/>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </div>
+    <div class="tipbtn">
+        <button id="saveTeacherBtn" class="sure">确定</button>
+        <button class="cancel closeModal">取消</button>
+    </div>
+</div>
+
+<!-- 修改密码模态框 -->
+<div id="pwdModal" class="tip" style="left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop"><span>修改密码</span><a class="closePwdModal">×</a></div>
+    <div class="tipinfo">
+        <input type="hidden" id="pwdTeacherId"/>
+        <table class="form-table">
+            <tr>
+                <td class="label">新密码：</td>
+                <td class="input"><input type="password" id="newPassword"/></td>
+            </tr>
+            <tr>
+                <td class="label">确认密码：</td>
+                <td class="input"><input type="password" id="confirmPassword"/></td>
+            </tr>
+        </table>
+    </div>
+    <div class="tipbtn">
+        <button id="savePwdBtn" class="sure">确定</button>
+        <button class="cancel closePwdModal">取消</button>
+    </div>
+</div>
+
+<!-- ========== 指定角色模态框 ========== -->
+<div id="roleModal" class="tip" style="left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop">
+        <span>分配角色（可多选）</span>
+        <a class="closeRoleModal">×</a>
+    </div>
+    <div class="tipinfo">
+        <input type="hidden" id="roleTeacherId"/>
+        <div id="roleCheckboxGroup">
+            <!-- 动态生成复选框 -->
+        </div>
+    </div>
+    <div class="tipbtn">
+        <button id="saveRoleBtn" class="sure">保存</button>
+        <button class="cancel closeRoleModal">取消</button>
+    </div>
+</div>
+
+<script th:src="@{/js/jquery.js}"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    var colleges = /*[[${colleges}]]*/ [];
+
+    // 摄像头相关变量
+    var mediaStream = null;
+    var capturedBlob = null;
+    var capturedFileName = null;
+
+    // 全局模态框控制函数
+    window.showModal = function (id) {
+        $(id).css('display', 'flex');
+        $('#mask').fadeIn(200);
+    };
+    window.hideModal = function (id) {
+        $(id).fadeOut(100);
+        $('#mask').fadeOut(100);
+    };
+
+    // 关闭摄像头（兼容低版本 jQuery）
+    function closeCamera() {
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(function (track) {
+                track.stop();
+            });
+            mediaStream = null;
+        }
+        var video = document.getElementById('cameraVideo');
+        if (video) video.srcObject = null;
+        var openBtn = document.getElementById('openCameraBtn');
+        var captureBtn = document.getElementById('captureBtn');
+        var closeBtn = document.getElementById('closeCameraBtn');
+        if (openBtn) openBtn.style.display = 'inline-block';
+        if (captureBtn) captureBtn.disabled = true;
+        if (closeBtn) closeBtn.style.display = 'none';
+    }
+
+    // 打开摄像头
+    function openCamera() {
+        if (mediaStream) {
+            closeCamera();
+        }
+        navigator.mediaDevices.getUserMedia({video: true})
+            .then(function (stream) {
+                mediaStream = stream;
+                var video = document.getElementById('cameraVideo');
+                video.srcObject = stream;
+                video.play();
+                var openBtn = document.getElementById('openCameraBtn');
+                var captureBtn = document.getElementById('captureBtn');
+                var closeBtn = document.getElementById('closeCameraBtn');
+                if (openBtn) openBtn.style.display = 'none';
+                if (captureBtn) captureBtn.disabled = false;
+                if (closeBtn) closeBtn.style.display = 'inline-block';
+            })
+            .catch(function (err) {
+                console.error('摄像头访问失败：', err);
+                alert('无法访问摄像头，请检查权限或设备情况。');
+            });
+    }
+
+    // 拍照
+    function capturePhoto() {
+        var video = document.getElementById('cameraVideo');
+        if (!video || video.readyState !== 4) {
+            alert('摄像头未就绪，请稍后再试');
+            return;
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(function (blob) {
+            capturedBlob = blob;
+            capturedFileName = 'camera_photo_' + Date.now() + '.jpg';
+            var url = URL.createObjectURL(blob);
+            var preview = document.getElementById('photoPreview');
+            preview.src = url;
+            preview.style.display = 'block';
+        }, 'image/jpeg', 0.9);
+    }
+
+    // 重置摄像头UI
+    function resetCameraUI() {
+        closeCamera();
+        capturedBlob = null;
+        capturedFileName = null;
+        var preview = document.getElementById('photoPreview');
+        preview.style.display = 'none';
+        preview.src = '';
+        var openBtn = document.getElementById('openCameraBtn');
+        var captureBtn = document.getElementById('captureBtn');
+        var closeBtn = document.getElementById('closeCameraBtn');
+        if (openBtn) openBtn.style.display = 'inline-block';
+        if (captureBtn) captureBtn.disabled = true;
+        if (closeBtn) closeBtn.style.display = 'none';
+    }
+
+    // 添加教师
+    window.showAddModal = function () {
+        $('#teacherForm')[0].reset();
+        $('#teacherId').val('');
+        $('#passwordRow').show();
+        resetCameraUI();
+        var select = $('#teacherCollegeId');
+        if (colleges.length>1) {
+            select.html('<option value="">请选择学院</option>');
+        }
+        for (var i = 0; i < colleges.length; i++) {
+            select.append('<option value="' + colleges[i].id + '">' + colleges[i].name + '</option>');
+        }
+        $('#modalTitle').text('添加教师');
+        window.showModal('#teacherModal');
+    };
+
+    // 修改教师
+    window.editTeacher = function (id) {
+        ajaxGet(BASE_URL + '/teacher/info/' + id, function (r) {
+            if (r.code === 200) {
+                var t = r.data;
+                $('#teacherId').val(t.id);
+                $('#teacherNum').val(t.num);
+                $('#teacherName').val(t.name);
+                $('#teacherMobile').val(t.mobile);
+                $('#teacherPassword').val('');
+                $('#passwordRow').hide();
+                var select = $('#teacherCollegeId');
+                if (colleges.length>1) {
+                    select.html('<option value="">请选择学院</option>');
+                }
+                for (var i = 0; i < colleges.length; i++) {
+                    var sel = (colleges[i].id == t.collegeId) ? 'selected' : '';
+                    select.append('<option value="' + colleges[i].id + '" ' + sel + '>' + colleges[i].name + '</option>');
+                }
+                resetCameraUI();  // 关闭摄像头，清空新拍照数据
+                // 显示原有照片（来自服务器）
+                if (t.avatarUrl) {
+                    console.log(BASE_URL + t.avatarUrl)
+                    var preview = document.getElementById('photoPreview');
+                    preview.src = BASE_URL + t.avatarUrl;
+                    preview.style.display = 'block';
+                    $('#photoPreview').show();
+                } else {
+                    $('#photoPreview').hide();
+                }
+
+                $('#modalTitle').text('修改教师');
+                window.showModal('#teacherModal');
+            } else {
+                alert(r.msg);
+            }
+        });
+    };
+
+    // 删除教师
+    window.deleteTeacher = function (id) {
+        if (confirm('确定删除该教师吗？')) {
+            ajaxDelete(BASE_URL + '/teacher/delete/' + id, function (r) {
+                if (r.code === 200) {
+                    alert('删除成功');
+                    document.queryForm.submit();
+                }
+                else {
+                    alert(r.msg);
+                }
+            });
+        }
+    };
+
+    // 重置密码
+    window.resetPwd = function (id) {
+        $('#pwdTeacherId').val(id);
+        $('#newPassword,#confirmPassword').val('');
+        window.showModal('#pwdModal');
+    };
+
+    // 绑定摄像头按钮事件（使用原生 addEventListener 确保兼容）
+    document.getElementById('openCameraBtn').addEventListener('click', openCamera);
+    document.getElementById('captureBtn').addEventListener('click', capturePhoto);
+    document.getElementById('closeCameraBtn').addEventListener('click', closeCamera);
+
+    // 保存教师（使用原生 XMLHttpRequest）
+    $('#saveTeacherBtn').click(function () {
+        var teacherId = $('#teacherId').val();
+        var teacherNum = $('#teacherNum').val();
+        var teacherName = $('#teacherName').val();
+        var collegeId = parseInt($('#teacherCollegeId').val());
+        var mobile = $('#teacherMobile').val();
+        var plainPassword = $('#teacherPassword').val();
+        var teacher;
+        if (teacherId) {
+            teacher = {
+                id: teacherId || null,
+                num: teacherNum,
+                name: teacherName,
+                collegeId: collegeId,
+                mobile: mobile
+            };
+        } else {
+            teacher = {
+                id: teacherId || null,
+                num: teacherNum,
+                name: teacherName,
+                collegeId: collegeId,
+                mobile: mobile,
+                password: plainPassword
+            };
+        }
+
+        var formData = new FormData();
+        formData.append('teacher', JSON.stringify(teacher));
+
+        if (capturedBlob) {
+            var photoFile = new File([capturedBlob], capturedFileName || 'camera_photo.jpg', {type: 'image/jpeg'});
+            formData.append('photo', photoFile);
+        }
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', BASE_URL + '/teacher/save', true);
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.code === 200) {
+                            alert(response.msg);
+                            window.hideModal('#teacherModal');
+                            closeCamera();
+                            document.queryForm.submit();
+                        } else {
+                            alert(response.msg);
+                        }
+                    } catch (e) {
+                        alert('服务器返回数据格式错误');
+                    }
+                } else {
+                    alert('请求失败，状态码：' + xhr.status);
+                }
+            }
+        };
+        xhr.send(formData);
+    });
+
+    // 重置密码提交
+    $('#savePwdBtn').click(function () {
+        var pwd = $('#newPassword').val();
+        if (pwd !== $('#confirmPassword').val()) {
+            alert('两次密码不一致');
+            return;
+        }
+        if (pwd.length < 6) {
+            alert('密码至少6位');
+            return;
+        }
+        $.post(BASE_URL + '/teacher/resetPassword', {
+            teacherId: $('#pwdTeacherId').val(),
+            newPassword: pwd
+        }, function (r) {
+            if (r.code === 200) {
+                alert('重置成功');
+                window.hideModal('#pwdModal');
+            }
+            else alert(r.msg);
+        });
+    });
+
+    // ---------- 指定角色相关 ----------
+    window.assignRole = function (teacherId) {
+        $('#roleTeacherId').val(teacherId);
+        ajaxGet(BASE_URL + '/teacher/roleIdsAndChecked/' + teacherId,
+        function (res) {
+            console.log(res)
+            var allRoles = res.allRoles;
+            var checkedIds = res.checkedIds;
+            var html = '';
+            for (var i = 0; i < allRoles.length; i++) {
+                var role = allRoles[i];
+                var isChecked = (checkedIds.indexOf(role.id) !== -1);
+                html += '<div style="padding:5px;">' +
+                    '<label><input type="checkbox" name="roleCheckbox" value="' + role.id + '" ' + (isChecked ? 'checked' : '') + '> ' + role.name + '</label>' +
+                    '</div>';
+            }
+            $('#roleCheckboxGroup').html(html);
+            window.showModal('#roleModal');
+        }).fail(function () {
+            alert('获取角色数据失败');
+        });
+    };
+
+    $('#saveRoleBtn').click(function () {
+        var teacherId = $('#roleTeacherId').val();
+        var roleIds = [];
+        $('input[name="roleCheckbox"]:checked').each(function () {
+            roleIds.push($(this).val());
+        });
+        $.ajax({
+            url: BASE_URL + '/teacher/saveRoles',
+            type: 'POST',
+            data: {teacherId: teacherId, roleIds: roleIds},
+            traditional: true,
+            success: function (res) {
+                if (res.code === 200) {
+                    alert('角色分配成功');
+                    window.hideModal('#roleModal');
+                    document.queryForm.submit();
+                } else {
+                    alert(res.msg);
+                }
+            },
+            error: function () {
+                alert('保存失败');
+            }
+        });
+    });
+
+    // 关闭模态框事件
+    $('.closeModal').click(function () {
+        closeCamera();
+        window.hideModal('#teacherModal');
+    });
+    $('.closePwdModal').click(function () {
+        window.hideModal('#pwdModal');
+    });
+    $('.closeRoleModal').click(function () {
+        window.hideModal('#roleModal');
+    });
+    $('.cancel').click(function () {
+        closeCamera();
+        window.hideModal('#teacherModal');
+        window.hideModal('#pwdModal');
+        window.hideModal('#roleModal');
+    });
+    $('#mask').click(function () {
+        closeCamera();
+        $('.tip:visible').each(function () {
+            window.hideModal('#' + $(this).attr('id'));
+        });
+    });
+
+    // 表格奇偶样式
+    $(document).ready(function () {
+        $('.tablelist tbody tr:odd').addClass('odd');
+    });
+    /*]]>*/
+</script>
+</body>
+</html>

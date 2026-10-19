@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:shiro="http://www.thymeleaf.org/thymeleaf-extras-shiro">
+<head th:replace="/common/template :: header(~{::title},~{::link},~{::style})">
+    <title>学生管理</title>
+</head>
+<style>
+    .mask {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+
+    .tip {
+        position: fixed;
+        background: #fff;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+        width: 560px;
+        display: none;
+        flex-direction: column;
+    }
+
+    #studentModal {
+        min-height: 600px;
+    }
+
+    #pwdModal {
+        width: 420px;
+        min-height: 300px;
+    }
+
+    .tip .tiptop {
+        padding: 10px;
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        cursor: move;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .tip .tiptop span {
+        color: #2e8b57;
+        font-weight: bold;
+        font-size: 14px;
+    }
+
+    .tip .tiptop a {
+        color: red;
+        font-size: 20px;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .tipinfo {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+    }
+
+    .form-table {
+        width: 100%;
+    }
+
+    .form-table tr {
+        height: 50px;
+    }
+
+    .form-table td.label {
+        width: 100px;
+        text-align: right;
+        padding-right: 10px;
+        vertical-align: top;
+        padding-top: 8px;
+    }
+
+    .form-table td.input {
+        text-align: left;
+    }
+
+    .form-table input, .form-table select {
+        width: 100%;
+        padding: 6px 4px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        box-sizing: border-box;
+    }
+
+    .tipbtn {
+        text-align: center;
+        padding: 10px;
+        border-top: 1px solid #eee;
+        background: #fafafa;
+    }
+
+    .tipbtn button {
+        margin: 0 10px;
+        padding: 6px 20px;
+        cursor: pointer;
+    }
+
+    .tipbtn .sure {
+        background: #2e8b57;
+        color: white;
+        border: none;
+        border-radius: 3px;
+    }
+
+    .tipbtn .cancel {
+        background: #ccc;
+        border: none;
+        border-radius: 3px;
+    }
+
+    .toolbar1 li {
+        cursor: pointer;
+    }
+
+    .tablelist th, .tablelist td {
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .student-photo {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .photo-area {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .video-preview {
+        width: 100%;
+        max-width: 200px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+
+    .capture-buttons {
+        display: flex;
+        gap: 8px;
+    }
+
+    .capture-buttons button {
+        padding: 4px 12px;
+        cursor: pointer;
+    }
+
+    #photoPreview {
+        max-width: 100px;
+        max-height: 100px;
+        margin-top: 5px;
+        border-radius: 5px;
+        display: block;
+    }
+</style>
+<body>
+<div class="place">
+    <span>位置：</span>
+    <ul class="placeul">
+        <li><a href="#">基础信息</a></li>
+        <li><a href="#">学生管理</a></li>
+    </ul>
+</div>
+
+<div class="rightinfo">
+    <div class="tools" shiro:hasPermission="baseinfo:student:query">
+        <form th:action="@{/student/query}" method="get" name="queryForm">
+            <ul class="toolbar">
+                <li><input type="hidden" name="curPage" value="1"/></li>
+                <li><label>姓名：</label><input type="text" name="name"
+                                             th:value="${studentQuery != null ? studentQuery.name : ''}"
+                                             style="height:25px; border:solid #0b3a58"/></li>
+                <li><label>学号：</label><input type="text" name="num"
+                                             th:value="${studentQuery != null ? studentQuery.num : ''}"
+                                             style="height:25px; border:solid #0b3a58"/></li>
+                <li>
+                    <label>学院：</label>
+                    <select name="collegeId" id="queryCollegeId" style="height:31px; border:solid #0b3a58">
+                        <option th:if="${colleges.size()>1}" value="">全部</option>
+                        <option th:each="college : ${colleges}" th:value="${college.id}" th:text="${college.name}"
+                                th:selected="${studentQuery != null && studentQuery.collegeId != null && studentQuery.collegeId == college.id}"></option>
+                    </select>
+                </li>
+                <li>
+                    <label>年级：</label>
+                    <select name="grade" id="queryGrade" style="height:31px; border:solid #0b3a58">
+                        <option th:if="${grades.size()>1}" value="">全部</option>
+                        <option th:each="g : ${grades}" th:value="${g.grade}" th:text="${g.grade}"
+                                th:selected="${studentQuery != null && studentQuery.grade != null && studentQuery.grade == g.grade}"></option>
+                    </select>
+                </li>
+                <li>
+                    <label>班级：</label>
+                    <select name="classId" id="queryClassId" style="height:31px; border:solid #0b3a58">
+
+                    </select>
+                </li>
+                <li><span><img th:src="@{/images/ico06.png}" onclick="document.queryForm.submit();"
+                               style="cursor:pointer;"/></span></li>
+            </ul>
+        </form>
+        <ul class="toolbar1" shiro:hasPermission="baseinfo:student:add">
+            <li onclick="window.showAddModal();"><span><img th:src="@{/images/t01.png}"/></span><a>添加学生</a></li>
+        </ul>
+    </div>
+
+    <table class="tablelist">
+        <thead>
+        <tr>
+            <th>头像</th>
+            <th>学号</th>
+            <th>姓名</th>
+            <th>性别</th>
+            <th>学院</th>
+            <th>年级</th>
+            <th>班级</th>
+            <th>手机</th>
+            <th>QQ</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:if="${#lists.isEmpty(page.records)}">
+            <td colspan="10" style="text-align:center;">暂无数据</td>
+        </tr>
+        <tr th:each="student : ${page.records}">
+            <td>
+                <img th:if="${student.avatarUrl != null}" th:src="@{${student.avatarUrl}}" class="student-photo"/>
+                <img th:if="${student.avatarUrl == null}" th:src="@{/images/default_avatar.png}" class="student-photo"/>
+            </td>
+            <td th:text="${student.num}"></td>
+            <td th:text="${student.name}"></td>
+            <td th:text="${student.sex == 1 ? '男' : '女'}"></td>
+            <td th:text="${student.collegeName}"></td>
+            <td th:text="${student.grade}"></td>
+            <td th:text="${student.className}"></td>
+            <td th:text="${student.mobile}"></td>
+            <td th:text="${student.qq}"></td>
+            <td>
+                <a class="tablelink" href="javascript:void(0);" th:onclick="|window.editStudent(${student.id})|"
+                   shiro:hasPermission="baseinfo:student:update">修改</a>&nbsp;
+                <a class="tablelink" href="javascript:void(0);" th:onclick="|window.resetPwd(${student.id})|"
+                   shiro:hasPermission="baseinfo:student:updatepassword">重置密码</a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <div th:replace="~{common/pageCommon::page_fragment}"></div>
+</div>
+
+<div id="mask" class="mask"></div>
+
+<!-- 学生信息模态框（添加/修改） -->
+<div id="studentModal" class="tip" style="left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop"><span id="modalTitle">学生信息</span><a class="closeModal">×</a></div>
+    <div class="tipinfo">
+        <form id="studentForm" enctype="multipart/form-data">
+            <input type="hidden" id="studentId"/>
+            <table class="form-table">
+                <tr>
+                    <td class="label">学号：</td>
+                    <td class="input"><input type="text" id="studentNum" required/></td>
+                </tr>
+                <tr>
+                    <td class="label">姓名：</td>
+                    <td class="input"><input type="text" id="studentName" required/></td>
+                </tr>
+                <tr id="passwordRow">
+                    <td class="label">登录密码：</td>
+                    <td class="input"><input type="password" id="studentPassword"/></td>
+                </tr>
+                <tr>
+                    <td class="label">性别：</td>
+                    <td class="input">
+                        <select id="studentSex">
+                            <option value="1">男</option>
+                            <option value="0">女</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label">学院：</td>
+                    <td class="input">
+                        <select id="formCollegeId" required onchange="loadClassesForForm()">
+                            <option value="">请选择学院</option>
+                            <option th:each="college : ${colleges}" th:value="${college.id}"
+                                    th:text="${college.name}"></option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label">年级：</td>
+                    <td class="input">
+                        <select id="formGrade" onchange="loadClassesForForm()">
+                            <option value="">请选择年级</option>
+                            <option th:each="g : ${grades}" th:value="${g.grade}" th:text="${g.grade}"></option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label">班级：</td>
+                    <td class="input">
+                        <select id="formClassId" required>
+                            <option value="">请先选择学院和年级</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label">手机：</td>
+                    <td class="input"><input type="text" id="studentMobile"/></td>
+                </tr>
+                <tr>
+                    <td class="label">QQ：</td>
+                    <td class="input"><input type="text" id="studentQq"/></td>
+                </tr>
+                <tr>
+                    <td class="label">照片：</td>
+                    <td class="input">
+                        <div class="photo-area">
+                            <video id="cameraVideo" autoplay playsinline
+                                   style="width:200px; border:1px solid #ccc; border-radius:4px;"></video>
+                            <div class="capture-buttons">
+                                <button type="button" id="openCameraBtn">打开摄像头</button>
+                                <button type="button" id="captureBtn" disabled>拍照</button>
+                                <button type="button" id="closeCameraBtn" style="display:none;">关闭摄像头</button>
+                            </div>
+                            <div>
+                                <span>当前照片：</span>
+                                <img id="photoPreview"
+                                     style="display:none; max-width:100px; max-height:100px; border-radius:5px;">
+                                <input type="hidden" id="capturedPhotoData"/>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </form>
+    </div>
+    <div class="tipbtn">
+        <button id="saveStudentBtn" class="sure">确定</button>
+        <button class="cancel closeModal">取消</button>
+    </div>
+</div>
+
+<!-- 修改密码模态框 -->
+<div id="pwdModal" class="tip" style="left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop"><span>修改密码</span><a class="closePwdModal">×</a></div>
+    <div class="tipinfo">
+        <input type="hidden" id="pwdStudentId"/>
+        <table class="form-table">
+            <tr>
+                <td class="label">新密码：</td>
+                <td class="input"><input type="password" id="newPassword"/></td>
+            </tr>
+            <tr>
+                <td class="label">确认密码：</td>
+                <td class="input"><input type="password" id="confirmPassword"/></td>
+            </tr>
+        </table>
+    </div>
+    <div class="tipbtn">
+        <button id="savePwdBtn" class="sure">确定</button>
+        <button class="cancel closePwdModal">取消</button>
+    </div>
+</div>
+
+<script th:src="@{/js/jquery.js}"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    // 获取后端传递的数据（用于 JS 逻辑）
+    var colleges =/*[[${colleges}]]*/ ||[];
+    var grades =/*[[${grades}]]*/ ||[];
+
+    // ---------- 摄像头相关变量 ----------
+    var mediaStream = null;
+    var capturedBlob = null;
+    var capturedFileName = null;
+
+    // ---------- 全局函数 ----------
+    window.showModal = function (id) {
+        $(id).css('display', 'flex');
+        $('#mask').fadeIn(200);
+    };
+    window.hideModal = function (id) {
+        $(id).fadeOut(100);
+        $('#mask').fadeOut(100);
+    };
+
+    // 关闭摄像头
+    function closeCamera() {
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(function (track) {
+                track.stop();
+            });
+            mediaStream = null;
+        }
+        var video = document.getElementById('cameraVideo');
+        if (video) video.srcObject = null;
+        var openBtn = document.getElementById('openCameraBtn');
+        var captureBtn = document.getElementById('captureBtn');
+        var closeBtn = document.getElementById('closeCameraBtn');
+        if (openBtn) openBtn.style.display = 'inline-block';
+        if (captureBtn) captureBtn.disabled = true;
+        if (closeBtn) closeBtn.style.display = 'none';
+    }
+
+    window.closeCamera = closeCamera;
+
+    // 打开摄像头
+    function openCamera() {
+        if (mediaStream) {
+            closeCamera();
+        }
+        navigator.mediaDevices.getUserMedia({video: true})
+            .then(function (stream) {
+                mediaStream = stream;
+                var video = document.getElementById('cameraVideo');
+                video.srcObject = stream;
+                video.play();
+                var openBtn = document.getElementById('openCameraBtn');
+                var captureBtn = document.getElementById('captureBtn');
+                var closeBtn = document.getElementById('closeCameraBtn');
+                if (openBtn) openBtn.style.display = 'none';
+                if (captureBtn) captureBtn.disabled = false;
+                if (closeBtn) closeBtn.style.display = 'inline-block';
+            })
+            .catch(function (err) {
+                console.error('摄像头访问失败：', err);
+                alert('无法访问摄像头，请检查权限或设备情况。');
+            });
+    }
+
+    // 拍照
+    function capturePhoto() {
+        var video = document.getElementById('cameraVideo');
+        if (!video || video.readyState !== 4) {
+            alert('摄像头未就绪，请稍后再试');
+            return;
+        }
+        var canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(function (blob) {
+            capturedBlob = blob;
+            capturedFileName = 'camera_photo_' + Date.now() + '.jpg';
+            var url = URL.createObjectURL(blob);
+            var preview = document.getElementById('photoPreview');
+            preview.src = url;
+            preview.style.display = 'block';
+        }, 'image/jpeg', 0.9);
+    }
+
+    // 重置摄像头UI
+    function resetCameraUI() {
+        closeCamera();
+        capturedBlob = null;
+        capturedFileName = null;
+        var preview = document.getElementById('photoPreview');
+        preview.style.display = 'none';
+        preview.src = '';
+        var openBtn = document.getElementById('openCameraBtn');
+        var captureBtn = document.getElementById('captureBtn');
+        var closeBtn = document.getElementById('closeCameraBtn');
+        if (openBtn) openBtn.style.display = 'inline-block';
+        if (captureBtn) captureBtn.disabled = true;
+        if (closeBtn) closeBtn.style.display = 'none';
+    }
+
+    // ---------- 加载班级（查询表单） ----------
+    function loadClassesForQuery() {
+        var collegeId = $('#queryCollegeId').val();
+        var grade = $('#queryGrade').val();
+        if (!collegeId) {
+           alert('请先选择学院')
+            return;
+        }
+        $.ajax({
+            url: BASE_URL + '/student/getClasses',
+            type: 'GET',
+            data: {collegeId: collegeId, grade: grade},
+            success: function (res) {
+                if (res.code === 200) {
+                    var classList = res.data;
+                    if(classList.length>1){
+                        var html = '<option value="">全部</option>';
+                    }else{
+                        html ='';
+                    }
+                    for (var i = 0; i < classList.length; i++) {
+                        html += '<option value="' + classList[i].id + '">' + classList[i].num + '</option>';
+                    }
+                    $('#queryClassId').html(html);
+                }
+            }
+        });
+    }
+
+    // ---------- 加载班级（表单模态框）支持回调 ----------
+    function loadClassesForForm(callback) {
+        var collegeId = $('#formCollegeId').val();
+        var grade = $('#formGrade').val();
+        if (!collegeId) {
+            alert('请先选择学院')
+            if (callback) callback();
+            return;
+        }
+        $.ajax({
+            url: BASE_URL + '/student/getClasses',
+            type: 'GET',
+            data: {collegeId: collegeId, grade: grade},
+            success: function (res) {
+                if (res.code === 200) {
+                    var classList = res.data;
+                    var html = '';
+                    if (classList.length>1) {
+                        html = '<option value="">请选择班级</option>';
+                    }
+
+                    for (var i = 0; i < classList.length; i++) {
+                        html += '<option value="' + classList[i].id + '">' + classList[i].num + '</option>';
+                    }
+                    $('#formClassId').html(html);
+                    if (callback) callback();
+                }
+            }
+        });
+    }
+
+    // ---------- 添加学生 ----------
+    window.showAddModal = function () {
+        $('#studentForm')[0].reset();
+        $('#studentId').val('');
+        $('#passwordRow').show();
+        resetCameraUI();
+
+        // 清空班级，因为学院和年级可能未选
+        $('#formClassId').html('<option value="">请先选择学院和年级</option>');
+        // 注意：学院和年级的选项已经由 Thymeleaf 渲染，无需重新填充
+        // 但我们可以根据需要设置默认选中（例如第一个学院）
+        // 这里默认选中第一个学院（如果存在）
+        if (colleges.length > 0) {
+            $('#formCollegeId').val(colleges[0].id);
+        }
+        if (grades.length > 0) {
+            $('#formGrade').val(grades[0].grade);
+        }
+        // 触发加载班级
+        loadClassesForForm();
+
+        $('#modalTitle').text('添加学生');
+        window.showModal('#studentModal');
+    };
+
+    // ---------- 修改学生 ----------
+    window.editStudent = function (id) {
+        ajaxGet(BASE_URL + '/student/info/' + id, function (r) {
+            if (r.code === 200) {
+                var s = r.data;
+                $('#studentId').val(s.id);
+                $('#studentNum').val(s.num);
+                $('#studentName').val(s.name);
+                $('#studentSex').val(s.sex);
+                $('#studentMobile').val(s.mobile);
+                $('#studentQq').val(s.qq);
+                $('#studentPassword').val('');
+                $('#passwordRow').hide();
+
+                // 设置学院和年级的选中值（直接使用 val）
+                $('#formCollegeId').val(s.collegeId);
+                $('#formGrade').val(s.grade);
+
+                // 加载班级并在回调中设置班级选中值
+                loadClassesForForm(function () {
+                    if (s.classId) {
+                        $('#formClassId').val(s.classId);
+                    }
+                });
+                resetCameraUI();
+                // 显示头像
+                if (s.avatarUrl) {
+                    $('#photoPreview').attr('src', BASE_URL + s.avatarUrl).show();
+                } else {
+                    $('#photoPreview').hide();
+                }
+
+
+                $('#modalTitle').text('修改学生');
+                window.showModal('#studentModal');
+            } else {
+                alert(r.msg);
+            }
+        });
+    };
+
+    // ---------- 删除学生 ----------
+    window.deleteStudent = function (id) {
+        if (confirm('确定删除该学生吗？')) {
+            ajaxDelete(BASE_URL + '/student/delete/' + id, function (r) {
+                if (r.code === 200) {
+                    alert('删除成功');
+                    document.queryForm.submit();
+                } else {
+                    alert(r.msg);
+                }
+            });
+        }
+    };
+
+    // ---------- 重置密码 ----------
+    window.resetPwd = function (id) {
+        $('#pwdStudentId').val(id);
+        $('#newPassword,#confirmPassword').val('');
+        window.showModal('#pwdModal');
+    };
+
+    // ---------- 绑定摄像头按钮事件 ----------
+    document.getElementById('openCameraBtn').addEventListener('click', openCamera);
+    document.getElementById('captureBtn').addEventListener('click', capturePhoto);
+    document.getElementById('closeCameraBtn').addEventListener('click', closeCamera);
+
+    // ---------- 保存学生 ----------
+    $('#saveStudentBtn').click(function () {
+        var studentId = $('#studentId').val();
+        var studentNum = $('#studentNum').val();
+        var studentName = $('#studentName').val();
+        var sex = parseInt($('#studentSex').val());
+        var classId = parseInt($('#formClassId').val());
+        var mobile = $('#studentMobile').val();
+        var qq = $('#studentQq').val();
+        var plainPassword = $('#studentPassword').val();
+
+        // 校验班级必选
+        if (!classId) {
+            alert('请选择班级');
+            return;
+        }
+
+        var student = {
+            id: studentId || null,
+            num: studentNum,
+            name: studentName,
+            sex: sex,
+            classId: classId,
+            mobile: mobile,
+            qq: qq
+        };
+        if (!studentId) {
+            student.password = plainPassword;
+        }
+
+        var formData = new FormData();
+        formData.append('student', JSON.stringify(student));
+        if (capturedBlob) {
+            var photoFile = new File([capturedBlob], capturedFileName || 'camera_photo.jpg', {type: 'image/jpeg'});
+            formData.append('photo', photoFile);
+        }
+
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', BASE_URL + '/student/save', true);
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.code === 200) {
+                            alert(response.msg);
+                            window.hideModal('#studentModal');
+                            closeCamera();
+                            document.queryForm.submit();
+                        } else {
+                            alert(response.msg);
+                        }
+                    } catch (e) {
+                        alert('服务器返回数据格式错误');
+                    }
+                } else {
+                    alert('请求失败，状态码：' + xhr.status);
+                }
+            }
+        };
+        xhr.send(formData);
+    });
+
+    // ---------- 重置密码提交 ----------
+    $('#savePwdBtn').click(function () {
+        var pwd = $('#newPassword').val();
+        if (pwd !== $('#confirmPassword').val()) {
+            alert('两次密码不一致');
+            return;
+        }
+        if (pwd.length < 6) {
+            alert('密码至少6位');
+            return;
+        }
+        $.post(BASE_URL + '/student/resetPassword', {
+            studentId: $('#pwdStudentId').val(),
+            newPassword: pwd
+        }, function (r) {
+            if (r.code === 200) {
+                alert('重置成功');
+                window.hideModal('#pwdModal');
+            } else {
+                alert(r.msg);
+            }
+        });
+    });
+
+    // ---------- 模态框关闭事件 ----------
+    $('.closeModal').click(function () {
+        closeCamera();
+        window.hideModal('#studentModal');
+    });
+    $('.closePwdModal').click(function () {
+        window.hideModal('#pwdModal');
+    });
+    $('.cancel').click(function () {
+        closeCamera();
+        window.hideModal('#studentModal');
+        window.hideModal('#pwdModal');
+    });
+    $('#mask').click(function () {
+        closeCamera();
+        $('.tip:visible').each(function () {
+            window.hideModal('#' + $(this).attr('id'));
+        });
+    });
+
+    // ---------- 页面初始化 ----------
+    $(document).ready(function () {
+        // 查询表单联动
+        $('#queryCollegeId').change(function () {
+            loadClassesForQuery();
+        });
+        $('#queryGrade').change(function () {
+            loadClassesForQuery();
+        });
+        // 如果已有选中的学院，加载班级
+        if ($('#queryCollegeId').val()) {
+            loadClassesForQuery();
+        }
+
+        // 表格奇偶样式
+        $('.tablelist tbody tr:odd').addClass('odd');
+    });
+    /*]]>*/
+</script>
+</body>
+</html>

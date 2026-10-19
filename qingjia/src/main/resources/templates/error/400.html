@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{common/template :: header(~{::title},~{::link},~{::style})}">
+    <title>客户端错误 - 请求无效</title>
+    <style>
+        /* 全局样式 */
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Segoe UI', 'PingFang SC', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .error-container {
+            max-width: 700px;
+            width: 100%;
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            animation: fadeInUp 0.4s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .error-header {
+            background: #f8fafc;
+            padding: 30px 32px 20px 32px;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: center;
+        }
+
+        .error-icon {
+            font-size: 72px;
+            margin-bottom: 16px;
+        }
+
+        .error-code {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1e293b;
+            letter-spacing: 2px;
+            margin: 0;
+        }
+
+        .error-title {
+            font-size: 20px;
+            color: #475569;
+            margin-top: 8px;
+            font-weight: 500;
+        }
+
+        .error-body {
+            padding: 32px;
+        }
+
+        .info-card {
+            background: #f1f5f9;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .info-row {
+            display: flex;
+            padding: 8px 0;
+            border-bottom: 1px dashed #cbd5e1;
+            font-size: 14px;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            width: 100px;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .info-value {
+            flex: 1;
+            color: #1e293b;
+            word-break: break-word;
+        }
+
+        .message-box {
+            background: #fff7ed;
+            border-left: 4px solid #f97316;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+
+        .message-box strong {
+            color: #9a3412;
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+
+        .message-box p {
+            margin: 0;
+            color: #431407;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .errors-list {
+            background: #fef2f2;
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+        }
+
+        .errors-list h4 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            color: #b91c1c;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .error-item {
+            background: #fff;
+            padding: 10px 14px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            border: 1px solid #fecaca;
+        }
+
+        .error-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .field-name {
+            background: #fee2e2;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #991b1b;
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .error-message {
+            color: #7f1d1d;
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-top: 24px;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 40px;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        .btn-secondary:hover {
+            background: #cbd5e1;
+        }
+
+        footer {
+            background: #f1f5f9;
+            padding: 16px;
+            text-align: center;
+            font-size: 12px;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        @media (max-width: 640px) {
+            .error-container {
+                margin: 20px;
+            }
+            .error-header {
+                padding: 20px;
+            }
+            .error-code {
+                font-size: 36px;
+            }
+            .error-body {
+                padding: 20px;
+            }
+            .info-label {
+                width: 80px;
+            }
+            .error-item {
+                flex-direction: column;
+                gap: 6px;
+            }
+            .field-name {
+                align-self: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="error-container">
+    <div class="error-header">
+        <div class="error-icon">⚠️</div>
+        <h1 class="error-code">400</h1>
+        <div class="error-title">请求参数有误</div>
+    </div>
+
+    <div class="error-body">
+        <!-- 基本信息卡片 -->
+        <div class="info-card">
+            <div class="info-row">
+                <div class="info-label">请求路径</div>
+                <div class="info-value" th:text="${path} ?: '未知'">/unknown</div>
+            </div>
+            <div class="info-row" th:if="${status}">
+                <div class="info-label">HTTP状态</div>
+                <div class="info-value" th:text="${status}">400</div>
+            </div>
+            <div class="info-row" th:if="${timestamp}">
+                <div class="info-label">发生时间</div>
+                <div class="info-value" th:text="${#dates.format(timestamp, 'yyyy-MM-dd HH:mm:ss')}">2025-01-01 12:00:00</div>
+            </div>
+            <div class="info-row" th:if="${error}">
+                <div class="info-label">错误类型</div>
+                <div class="info-value" th:text="${error}">Bad Request</div>
+            </div>
+        </div>
+
+        <!-- 主要提示信息 -->
+        <div class="message-box" th:if="${message != null}">
+            <strong>📌 提示信息</strong>
+            <p th:text="${message}">请求无效，请检查参数后重试。</p>
+        </div>
+
+        <!-- JSR303 校验错误列表 -->
+        <div class="errors-list" th:if="${errors != null and !errors.isEmpty()}">
+            <h4>🔍 字段校验失败详情</h4>
+            <div th:each="err : ${errors}" class="error-item">
+                <span class="field-name" th:text="${err.field} ?: '全局错误'">username</span>
+                <span class="error-message" th:text="${err.defaultMessage}">不能为空</span>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="action-buttons">
+            <a href="javascript:history.back();" class="btn btn-primary" target="rightFrame">← 返回上一页</a>
+            <a th:href="@{/}" class="btn btn-secondary" target="_top">🏠 回到首页</a>
+        </div>
+    </div>
+
+    <footer>
+        如果您认为这是服务端问题，请联系管理员并提供上方信息。
+    </footer>
+</div>
+</body>
+</html>
+

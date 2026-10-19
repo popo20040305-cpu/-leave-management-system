@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:shiro="http://www.thymeleaf.org/thymeleaf-extras-shiro">
+<head th:replace="/common/template :: header(~{::title},~{::link},~{::style})">
+    <title>学院管理</title>
+</head>
+<style>
+    /* 遮罩层 */
+    .mask {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+    /* 模态框基础 */
+    .tip {
+        position: fixed;
+        background: #fff;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        z-index: 1000;
+        width: 480px;
+        display: flex;
+        flex-direction: column;
+    }
+    /* 添加/修改模态框 */
+    #collegeModal {
+        width: 520px;
+        min-height: 320px;
+    }
+    #collegeModal .tipinfo {
+        flex: 1;
+        padding: 20px;
+    }
+    .tip .tiptop {
+        padding: 10px;
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        cursor: move;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .tip .tiptop span {
+        color: #2e8b57;
+        font-weight: bold;
+        font-size: 14px;
+    }
+    .tip .tiptop a {
+        color: red;
+        font-size: 20px;
+        text-decoration: none;
+        cursor: pointer;
+        line-height: 1;
+    }
+    /* 表单样式 */
+    .college-form-table {
+        width: 100%;
+    }
+    .college-form-table tr {
+        height: 50px;
+    }
+    .college-form-table td.label {
+        width: 100px;
+        text-align: right;
+        padding-right: 10px;
+        vertical-align: top;
+        padding-top: 8px;
+    }
+    .college-form-table td.input {
+        text-align: left;
+    }
+    .college-form-table input,
+    .college-form-table select,
+    .college-form-table textarea {
+        width: 100%;
+        padding: 6px 4px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        box-sizing: border-box;
+    }
+    .college-form-table textarea {
+        resize: vertical;
+    }
+    .tipbtn {
+        text-align: center;
+        padding: 10px;
+        border-top: 1px solid #eee;
+        background: #fafafa;
+    }
+    .toolbar1 li {
+        cursor: pointer;
+    }
+</style>
+<body>
+<div class="place">
+    <span>位置：</span>
+    <ul class="placeul">
+        <li><a href="#">基础信息</a></li>
+        <li><a href="#">学院管理</a></li>
+    </ul>
+</div>
+
+<div class="rightinfo">
+    <!-- 工具栏：查询表单 + 添加按钮 -->
+    <div class="tools">
+        <form th:action="@{/college/index}" method="get" name="queryForm">
+            <ul class="toolbar">
+                <li>
+                    <input type="hidden" name="curPage" value="1"/>
+                </li>
+                <li>
+                    <label>学院名称</label>
+                    <cite>
+                        <input type="text" name="name" th:value="${param.name}"
+                               style="height:25px; border:solid #0b3a58"/>
+                    </cite>
+                </li>
+                <li>
+                    <label>学院编号</label>
+                    <cite>
+                        <input type="text" name="num" th:value="${param.num}"
+                               style="height:25px; border:solid #0b3a58"/>
+                    </cite>
+                </li>
+                <li>
+                    <span><img th:src="@{/images/ico06.png}" onclick="document.queryForm.submit();"/></span>
+                </li>
+            </ul>
+        </form>
+        <ul class="toolbar1" shiro:hasPermission="baseinfo:college:add">
+            <li id="btnAdd" onclick="showAddModal();" >
+                <span><img th:src="@{/images/t01.png}"/></span>
+                <a>添加</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- 学院列表表格 -->
+    <table class="tablelist">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>学院名称</th>
+            <th>学院编号</th>
+            <th>办公电话</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="college : ${page.records}">
+            <td th:text="${college.id}"></td>
+            <td th:text="${college.name}"></td>
+            <td th:text="${college.num}"></td>
+            <td th:text="${college.tel}"></td>
+            <td>
+                <a class="tablelink" th:onclick="|editCollege(${college.id})|" shiro:hasPermission="baseinfo:college:update">修改</a>
+                <a class="tablelink" th:onclick="|deleteCollege(${college.id})|" shiro:hasPermission="baseinfo:college:delete">删除</a>
+            </td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(page.records)}">
+            <td colspan="5" style="text-align:center;">暂无数据</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <!-- 分页公共片段 -->
+    <div th:replace="~{common/pageCommon::page_fragment}"></div>
+</div>
+
+<!-- 遮罩层 -->
+<div id="mask" class="mask"></div>
+
+<!-- ========== 添加/修改模态框 ========== -->
+<div id="collegeModal" class="tip" style="display:none; left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop">
+        <span>学院信息</span>
+        <a class="closeModal">×</a>
+    </div>
+    <div class="tipinfo">
+        <form id="collegeForm">
+            <input type="hidden" id="collegeId" name="id"/>
+            <table class="college-form-table">
+                <tr>
+                    <td class="label"><label>学院名称：</label></td>
+                    <td class="input"><input type="text" id="collegeName" name="name" required/></td>
+                </tr>
+                <tr>
+                    <td class="label"><label>学院编号：</label></td>
+                    <td class="input"><input type="text" id="collegeNum" name="num" required/></td>
+                </tr>
+                <tr>
+                    <td class="label"><label>办公电话：</label></td>
+                    <td class="input"><input type="text" id="collegeTel" name="tel"/></td>
+                </tr>
+            </table>
+        </form>
+    </div>
+    <div class="tipbtn">
+        <button id="saveCollegeBtn" class="sure">确定</button>
+        <button class="cancel closeModal">取消</button>
+    </div>
+</div>
+
+<script th:src="@{/js/jquery.js}"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    // 获取上下文路径
+    var BASE_URL = /*[[@{/}]]*/'';
+
+    // 显示模态框和遮罩
+    function showModal(modalId) {
+        $(modalId).fadeIn(200);
+        $('#mask').fadeIn(200);
+    }
+    function hideModal(modalId) {
+        $(modalId).fadeOut(100);
+        $('#mask').fadeOut(100);
+    }
+
+    // 添加按钮
+    function showAddModal() {
+        $('#collegeId').val('');
+        $('#collegeForm')[0].reset();
+        showModal('#collegeModal');
+    }
+
+    // 修改学院
+    function editCollege(id) {
+        ajaxGet(BASE_URL + 'college/info/' + id, function(res) {
+            if (res.code === 200) {
+                var college = res.data;
+                $('#collegeId').val(college.id);
+                $('#collegeName').val(college.name);
+                $('#collegeNum').val(college.num);
+                $('#collegeTel').val(college.tel);
+                showModal('#collegeModal');
+            } else {
+                alert(res.msg);
+            }
+        });
+    }
+
+    // 保存学院
+    $('#saveCollegeBtn').click(function() {
+        var formData = {
+            id: $('#collegeId').val() || null,
+            name: $('#collegeName').val(),
+            num: $('#collegeNum').val(),
+            tel: $('#collegeTel').val()
+        };
+        ajaxPost(BASE_URL + 'college/save', formData, function(res) {
+            if (res.code === 200) {
+                alert('保存成功');
+                hideModal('#collegeModal');
+                window.location.reload();
+            } else {
+                alert(res.msg);
+            }
+        });
+    });
+
+    // 删除学院
+    function deleteCollege(id) {
+        if (confirm('确定删除该学院吗？删除后无法恢复。')) {
+            ajaxDelete(BASE_URL + 'college/delete/' + id, function(res) {
+                if (res.code === 200) {
+                    alert('删除成功');
+                    window.location.reload();
+                } else {
+                    alert(res.msg);
+                }
+            });
+        }
+    }
+
+    // 关闭模态框
+    $('.closeModal, .cancel').click(function() {
+        hideModal('#collegeModal');
+    });
+
+    // 点击遮罩关闭
+    $('#mask').click(function() {
+        $('.tip:visible').each(function() {
+            hideModal('#' + $(this).attr('id'));
+        });
+    });
+
+    $(document).ready(function() {
+        $('.tablelist tbody tr:odd').addClass('odd');
+    });
+    /*]]>*/
+</script>
+</body>
+</html>

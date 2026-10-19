@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="edu.hbmd.taotao.qingjia.mapper.StudentMapper">
+    <!-- 查询字段（包含年级） -->
+    <sql id="student_query_field">
+        student.id,
+        student.num,
+        student.name,
+        student.classId,
+        student.sex,
+        student.mobile,
+        student.qq,
+        student.avatarUrl,
+        class.num as className,
+        class.grade,
+        college.id as collegeId,
+        college.name as collegeName
+    </sql>
+
+    <!-- 动态查询条件 -->
+    <sql id="student_query_condition">
+        <if test="student.name != null and student.name != ''">
+            AND student.name LIKE CONCAT('%', #{student.name}, '%')
+        </if>
+        <if test="student.num != null and student.num != ''">
+            AND student.num LIKE CONCAT('%', #{student.num}, '%')
+        </if>
+        <if test="student.collegeId != null">
+            AND college.id = #{student.collegeId}
+        </if>
+        <if test="student.grade != null">
+            AND class.grade = #{student.grade}
+        </if>
+        <if test="student.classId != null">
+            AND student.classId = #{student.classId}
+        </if>
+        <if test="student.id != null">
+            AND student.id = #{student.id}
+        </if>
+    </sql>
+
+    <sql id="student_left_join">
+        LEFT JOIN class ON student.classId = class.id
+        LEFT JOIN college ON class.belongToCollegeId = college.id
+    </sql>
+
+    <!-- 分页查询 -->
+    <select id="pageStudents" resultType="StudentVo">
+        SELECT
+        <include refid="student_query_field"/>
+        FROM student
+        <include refid="student_left_join"/>
+        <trim prefix="WHERE" prefixOverrides="AND|OR">
+            <include refid="student_query_condition"/>
+        </trim>
+        ORDER BY student.id DESC
+    </select>
+
+    <!-- 列表查询（不分页） -->
+    <select id="listStudents" resultType="StudentVo">
+        SELECT
+        <include refid="student_query_field"/>
+        FROM student
+        <include refid="student_left_join"/>
+        <trim prefix="WHERE" prefixOverrides="AND|OR">
+            <include refid="student_query_condition"/>
+        </trim>
+        ORDER BY student.id DESC
+    </select>
+
+    <!-- 根据id查询 -->
+    <select id="selectById" resultType="StudentVo">
+        SELECT
+        <include refid="student_query_field"/>
+        FROM student
+        <include refid="student_left_join"/>
+        WHERE  student.id = #{id}
+    </select>
+</mapper>
+

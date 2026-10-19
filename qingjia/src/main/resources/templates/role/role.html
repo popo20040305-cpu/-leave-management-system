@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:shiro="http://www.thymeleaf.org/thymeleaf-extras-shiro">
+<head th:replace="/common/template :: header(~{::title},~{::link},~{::style})">
+    <title>角色管理</title>
+</head>
+<style>
+    /* 遮罩层 */
+    .mask {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+    /* 模态框基础 */
+    .tip {
+        position: fixed;
+        background: #fff;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        z-index: 1000;
+        width: 480px;
+        display: flex;
+        flex-direction: column;
+    }
+    /* 添加/修改模态框 */
+    #roleModal {
+        width: 520px;
+        min-height: 360px;
+    }
+    #roleModal .tipinfo {
+        flex: 1;
+        padding: 20px;
+    }
+    /* 权限设置模态框 */
+    #permModal {
+        width: 600px;
+        min-height: 500px;
+    }
+    #permModal .tipinfo {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+    }
+    .tip .tiptop {
+        padding: 10px;
+        background: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        cursor: move;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .tip .tiptop span {
+        color: #2e8b57;  /* 绿色标题 */
+        font-weight: bold;
+        font-size: 14px;
+    }
+    .tip .tiptop a {
+        color: red;
+        font-size: 20px;
+        text-decoration: none;
+        cursor: pointer;
+        line-height: 1;
+    }
+    /* 表单样式 - 简单可靠 */
+    .role-form-table {
+        width: 100%;
+    }
+    .role-form-table tr {
+        height: 50px;
+    }
+    .role-form-table td.label {
+        width: 80px;
+        text-align: right;
+        padding-right: 10px;
+        vertical-align: top;
+        padding-top: 8px;
+    }
+    .role-form-table td.input {
+        text-align: left;
+    }
+    .role-form-table input,
+    .role-form-table select,
+    .role-form-table textarea {
+        width: 100%;
+        padding: 6px 4px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        box-sizing: border-box;
+    }
+    .role-form-table textarea {
+        resize: vertical;
+    }
+    .tipbtn {
+        text-align: center;
+        padding: 10px;
+        border-top: 1px solid #eee;
+        background: #fafafa;
+    }
+    #permTree {
+        min-height: 350px;
+        max-height: 450px;
+        overflow-y: auto;
+        padding: 5px;
+    }
+    /* 工具条按钮整行可点 */
+    .toolbar1 li {
+        cursor: pointer;
+    }
+</style>
+<body>
+<div class="place">
+    <span>位置：</span>
+    <ul class="placeul">
+        <li><a href="#">系统设置</a></li>
+        <li><a href="#">角色管理</a></li>
+    </ul>
+</div>
+
+<div class="rightinfo">
+    <!-- 工具栏：查询表单 + 添加按钮 -->
+    <div class="tools">
+        <form th:action="@{/role/index}" method="get" name="queryForm">
+            <ul class="toolbar">
+                <li>
+                    <input type="hidden" name="curPage" value="1"/>
+                </li>
+                <li>
+                    <label>角色名称</label>
+                    <cite>
+                        <input type="text" name="name" th:value="${param.name}"
+                               style="height:25px; border:solid #0b3a58"/>
+                    </cite>
+                </li>
+                <li>
+                    <span><img th:src="@{/images/ico06.png}" onclick="document.queryForm.submit();"/></span>
+                </li>
+            </ul>
+        </form>
+        <ul class="toolbar1"  shiro:hasPermission="system:menu:add">
+            <li id="btnAdd" onclick="showAddModal();">
+                <span><img th:src="@{/images/t01.png}"/></span>
+                <a>添加</a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- 角色列表表格 -->
+    <table class="tablelist">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>角色名称</th>
+            <th>备注</th>
+            <th>角色类型</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="role : ${page.records}">
+            <td th:text="${role.id}"></td>
+            <td th:text="${role.name}"></td>
+            <td th:text="${role.remark}"></td>
+            <td>
+                <span th:each="type : ${roleTypes}" th:if="${type.id == role.roleType}" th:text="${type.name}"></span>
+            </td>
+            <td>
+                <a class="tablelink" th:onclick="|editRole(${role.id})|"  shiro:hasPermission="system:role:update">修改</a>
+                <a class="tablelink" th:onclick="|deleteRole(${role.id})|"  shiro:hasPermission="system:role:delete">删除</a>
+                <a class="tablelink" th:onclick="|setPermission(${role.id})|"  shiro:hasPermission="system:role:zdjsqx">指定角色权限</a>
+            </td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(page.records)}">
+            <td colspan="5" style="text-align:center;">暂无数据</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <!-- 分页公共片段 -->
+    <div th:replace="~{common/pageCommon::page_fragment}"></div>
+</div>
+
+<!-- 遮罩层 -->
+<div id="mask" class="mask"></div>
+
+<!-- ========== 添加/修改模态框（使用表格布局，确保所有元素可见） ========== -->
+<div id="roleModal" class="tip" style="display:none; left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop">
+        <span>角色信息</span>
+        <a class="closeModal">×</a>
+    </div>
+    <div class="tipinfo">
+        <form id="roleForm">
+            <input type="hidden" id="roleId" name="id"/>
+            <table class="role-form-table">
+                <tr>
+                    <td class="label"><label>角色名称：</label></td>
+                    <td class="input"><input type="text" id="roleName" name="name" required/></td>
+                </tr>
+                <tr>
+                    <td class="label"><label>角色类型：</label></td>
+                    <td class="input">
+                        <select id="roleType" name="roleType">
+                            <option th:each="type : ${roleTypes}" th:value="${type.id}" th:text="${type.name}"></option>
+                            <option th:if="${#lists.isEmpty(roleTypes)}" value="">无类型数据</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="label"><label>备注：</label></td>
+                    <td class="input"><textarea id="remark" name="remark" rows="3"></textarea></td>
+                </tr>
+            </table>
+        </form>
+    </div>
+    <div class="tipbtn">
+        <button id="saveRoleBtn" class="sure">确定</button>
+        <button class="cancel closeModal">取消</button>
+    </div>
+</div>
+
+<!-- ========== 权限设置模态框 ========== -->
+<div id="permModal" class="tip" style="display:none; left:50%; top:50%; transform:translate(-50%, -50%);">
+    <div class="tiptop">
+        <span>权限设置</span>
+        <a class="closePermModal">×</a>
+    </div>
+    <div class="tipinfo">
+        <div id="permTree"></div>
+    </div>
+    <div class="tipbtn">
+        <button id="savePermBtn" class="sure">保存</button>
+        <button class="cancel closePermModal">取消</button>
+    </div>
+</div>
+
+<script th:src="@{/js/jquery.js}"></script>
+<script th:src="@{/js/common.js}"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    var roleTypes = /*[[${roleTypes}]]*/ [];
+
+    // 显示模态框和遮罩
+    function showModal(modalId) {
+        $(modalId).fadeIn(200);
+        $('#mask').fadeIn(200);
+    }
+    function hideModal(modalId) {
+        $(modalId).fadeOut(100);
+        $('#mask').fadeOut(100);
+    }
+
+    // 添加按钮
+    function showAddModal() {
+        $('#roleId').val('');
+        $('#roleForm')[0].reset();
+        showModal('#roleModal');
+    }
+
+    // 修改角色
+    function editRole(id) {
+        ajaxGet(BASE_URL + '/role/info/' + id, function(res) {
+            if (res.code === 200) {
+                var role = res.data;
+                $('#roleId').val(role.id);
+                $('#roleName').val(role.name);
+                $('#roleType').val(role.roleType);
+                $('#remark').val(role.remark);
+                showModal('#roleModal');
+            } else {
+                alert(res.msg);
+            }
+        });
+    }
+
+    // 保存角色
+    $('#saveRoleBtn').click(function() {
+        var formData = {
+            id: $('#roleId').val() || null,
+            name: $('#roleName').val(),
+            roleType: $('#roleType').val(),
+            remark: $('#remark').val()
+        };
+        ajaxPost(BASE_URL + '/role/save', formData, function(res) {
+            console.log(res)
+            if (res.code === 200) {
+                alert('保存成功');
+                hideModal('#roleModal');
+                window.location.reload();
+            } else {
+                alert(res.msg);
+            }
+        });
+    });
+
+    // 删除角色
+    function deleteRole(id) {
+        if (confirm('确定删除该角色吗？删除后相关权限也会被清除。')) {
+            ajaxDelete(BASE_URL + '/role/delete/' + id, function(res) {
+                if (res.code === 200) {
+                    alert('删除成功');
+                    window.location.reload();
+                } else {
+                    alert(res.msg);
+                }
+            });
+        }
+    }
+
+    var currentRoleId = null;
+
+    // 打开权限设置窗口
+    function setPermission(roleId) {
+        console.log('打开权限设置窗口 角色id'+roleId)
+        currentRoleId = roleId;
+        ajaxGet(BASE_URL + '/role/permTree/' + roleId, function(res) {
+            if (res.code === 200) {
+                var tree = res.tree;
+                console.log(tree)
+                var checkedIds = res.checkedIds;
+                var html = buildTreeHtml(tree, checkedIds);
+                $('#permTree').html(html);
+                showModal('#permModal');
+            }else{
+                console.log('获取角色树失败')
+            }
+        });
+    }
+
+    // 递归构建树形HTML
+    function buildTreeHtml(menus, checkedIds, level) {
+        level = level || 0;
+        var html = '';
+        var indent = level * 20;
+        for (var i = 0; i < menus.length; i++) {
+            var menu = menus[i];
+            var checked = (checkedIds.indexOf(menu.id) !== -1) ? 'checked' : '';
+            html += '<div style="margin-left:' + indent + 'px; padding:5px;">' +
+                '<label><input type="checkbox" class="permCheckbox" value="' + menu.id + '" ' + checked + '> ' + menu.name + '</label>' +
+                '</div>';
+            if (menu.subMenus && menu.subMenus.length > 0) {
+                html += buildTreeHtml(menu.subMenus, checkedIds, level + 1);
+            }
+        }
+        return html;
+    }
+
+    // 保存权限
+    $('#savePermBtn').click(function() {
+        var menuIds = [];
+        $('.permCheckbox:checked').each(function() {
+            menuIds.push($(this).val());
+        });
+        $.ajax({
+            url: BASE_URL + '/role/savePerm',
+            type: 'POST',
+            data: { roleId: currentRoleId, menuIds: menuIds },
+            traditional: true,
+            success: function(res) {
+                if (res.code === 200) {
+                    alert('权限保存成功');
+                    hideModal('#permModal');
+                } else {
+                    alert(res.msg);
+                }
+            },
+            error: function() { alert('保存失败'); }
+        });
+    });
+
+    // 关闭模态框
+    $('.closeModal, .cancel').click(function() {
+        hideModal('#roleModal');
+    });
+    $('.closePermModal, .cancel').click(function() {
+        hideModal('#permModal');
+    });
+    // 点击遮罩关闭
+    $('#mask').click(function() {
+        $('.tip:visible').each(function() {
+            hideModal('#' + $(this).attr('id'));
+        });
+    });
+
+    $(document).ready(function() {
+        $('.tablelist tbody tr:odd').addClass('odd');
+    });
+    /*]]>*/
+</script>
+</body>
+</html>
